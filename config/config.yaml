@@ -1,0 +1,8 @@
+env:
+  state_dim: 3
+  action_dim: 1
+intermediate_dim: 64
+actor:
+  log_std_max: 2
+  log_std_min: -20
+  output_dim: 2

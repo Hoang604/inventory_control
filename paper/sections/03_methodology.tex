@@ -1,0 +1,73 @@
+\subsection{Problem Formulation}
+
+Inefficient inventory management imposes a staggering cost on the global economy, with the retail industry alone losing an estimated \$1.75 trillion annually due to issues like overstocking and stockouts. At the heart of this problem is the challenge of multi-echelon inventory control: coordinating ordering decisions across the sequential stages of a supply chain. This coordination is notoriously undermined by the ``bullwhip effect,'' where minor demand fluctuations at the consumer end become progressively amplified into severe oscillations in orders and inventory further upstream. The bullwhip effect leads directly to excessive holding costs, lost sales, and severe operational inefficiencies. Consequently, developing robust inventory control policies that can mitigate this effect remains a central challenge in operations research.
+
+We consider a serial multi-echelon supply chain consisting of $K=4$ stages, indexed by $k \in \{0, \dots, K-1\}$, representing the Retailer, Distributor, Manufacturer, and Supplier, respectively. The flow of goods moves downstream from stage $K-1$ to stage $0$, while information (orders) flows upstream. The system operates in discrete time steps $t \in \{0, \dots, T\}$. The dynamics are characterized by stochastic end-customer demand, fixed transportation lead times between stages, and capacity constraints.
+
+\subsection{Formal Problem Definition}
+
+We formalize the control problem from two distinct perspectives: a Centralized Optimization View, representing an idealized omniscient planner, and a Decentralized Agent View, formulated as a Partially Observable Markov Decision Process (POMDP).
+
+\subsubsection{Centralized Optimization View (Classical Formulation)}
+From the perspective of a centralized planner with complete information, the objective is to minimize the total system-wide cost over the planning horizon $T$. Let $I_{k,t}$ denote the on-hand inventory at stage $k$ at time $t$, and $a_{k,t}$ denote the replenishment order quantity placed by stage $k$ to its upstream supplier $k+1$.
+
+The system dynamics are governed by the following variables:
+\begin{itemize}
+    \item $Q_{k,t}^{\text{in}}$: Incoming shipment received by stage $k$ at time $t$.
+    \item $O_{k,t}^{\text{down}}$: Downstream demand received by stage $k$ at time $t$.
+    \item $LS_{k,t}$: Lost sales at stage $k$ at time $t$ due to insufficient inventory.
+    \item $L_{k+1}$: Fixed lead time for shipments from stage $k+1$ to stage $k$.
+\end{itemize}
+
+The optimization problem is formally stated as:
+\begin{flalign}
+    && \min_{ \{ a_{k,t} \} } \quad & \mathbb{E} \left[ \sum_{t=0}^{T} \sum_{k=0}^{K-1} (c_h \cdot I_{k,t} + c_p \cdot LS_{k,t}) \right] & \\
+    && \text{s.t.} \quad & I_{k,t} = \left(I_{k,t-1} + Q_{k,t}^{\text{in}} - O_{k,t}^{\text{down}}\right)^+ & \forall k, t \\
+    && & LS_{k,t} = \left(O_{k,t}^{\text{down}} - (I_{k,t-1} + Q_{k,t}^{\text{in}})\right)^+ & \forall k, t \\
+    && & Q_{k,t}^{\text{in}} = a_{k, t-L_{k+1}} & \forall k < K-1, t \\
+    && & O_{k,t}^{\text{down}} = a_{k-1, t} & \forall k > 0, t \\
+    && & O_{0,t}^{\text{down}} = d_t & \forall t \\
+    && & 0 \le a_{k,t} \le C_k & \forall k, t
+\end{flalign}
+where $c_h$ is the per-unit holding cost, $c_p$ is the per-unit penalty cost for lost sales, $d_t$ is the stochastic end-customer demand, $C_k$ is the supply capacity at stage $k$, and $(x)^+ = \max(0, x)$.
+
+\subsubsection{Decentralized Agent View (POMDP Formulation)}
+In a realistic setting, no single agent has access to the full state of the supply chain. We model the decision-making process for a generic stage as a \textbf{Partially Observable Markov Decision Process (POMDP)}, defined by the tuple $\mathcal{M} = (\mathcal{S}, \mathcal{A}, \mathcal{T}, \mathcal{R}, \Omega, \mathcal{O}, \gamma)$.
+
+\begin{itemize}
+    \item \textbf{State Space ($\mathcal{S}$):} The global state $s_t \in \mathcal{S}$ encompasses the full system configuration, including inventory levels $I_{k,t}$ and in-transit orders for all stages $k \in \{0, \dots, K-1\}$. This high-dimensional state is latent and unobservable to decentralized agents.
+
+    \item \textbf{Action Space ($\mathcal{A}$):} The action $a_t \in \mathcal{A} \subset \mathbb{R}_{\ge 0}$ corresponds to the reorder quantity placed by the agent to its upstream supplier. The action is bounded by the supplier's production capacity, $0 \le a_t \le C_{k+1}$.
+
+    \item \textbf{Observation Space ($\Omega$):} The agent operates under partial observability. The local observation $o_t \in \Omega$ consists of the agent's local on-hand inventory and a history of its recent orders (representing the pipeline inventory). Formally, $o_t = [I_{t}, a_{t-1}, a_{t-2}, \dots, a_{t-L_{max}}]$, where $L_{max}$ captures the relevant lead-time history.
+
+    \item \textbf{Reward Function ($\mathcal{R}$):} The local reward $r_t$ reflects the operational efficiency of the specific stage. It penalizes holding inventory and failing to meet downstream demand (lost sales):
+    \[
+    r_t(s_t, a_t) = -(c_h \cdot I_t + c_p \cdot LS_t)
+    \]
+    This reward structure incentivizes the agent to maintain lean inventory levels while maximizing service level ($LS_t \to 0$).
+
+    \item \textbf{Transition Dynamics ($\mathcal{T}$):} The system evolves according to the stochastic demand $d_t \sim P_D(\cdot)$ and the deterministic inventory conservation laws described in the centralized formulation.
+\end{itemize}
+
+\textbf{Objective:} The goal of the offline reinforcement learning agent is to learn a policy $\pi(a_t|o_t)$ from a fixed dataset of historical transitions $\mathcal{D} = \{ (o_i, a_i, r_i, o'_{i}) \}_{i=1}^N$ that maximizes the expected discounted return:
+\[
+    J(\pi) = \max_{\pi} \mathbb{E}_{{\tau \sim P^\pi}} \left[ \sum_{t=0}^{T} \gamma^t r_{t} \right]
+\]
+The fundamental challenge is to optimize this objective without online interaction, relying solely on the potentially suboptimal behaviors recorded in $\mathcal{D}$.
+
+\subsection{The Dataset: Synthesizing Chaos}
+To rigorously test the ``Paradox of Static Mastery,'' we need a dataset that is \textit{not} optimal. A dataset of perfect expert demonstrations would make the task trivial (Behavior Cloning). Instead, we generate a dataset of \textbf{Chaotic Competence}.
+
+We employ a \textbf{Randomized Min-Max Strategy}:
+\begin{enumerate}
+    \item For every episode, we sample random parameters $S \sim U(10, 200)$ and $s \sim U(0, S)$.
+    \item This creates a dataset covering a massive spectrum of behaviors: from ``Lean'' (low $S$, high risk) to ``Hoarder'' (high $S$, high cost), and everything in between.
+    \item We further inject Gaussian noise $\mathcal{N}(0, 5)$ into the actions.
+\end{enumerate}
+This dataset represents a realistic historical log of a company that has oscillated between different strategies over time, mostly performing suboptimally. The challenge for the agent is to find the signal in this noise.
+
+\subsection{IQL: The Mathematical Filter}
+We train an IQL agent on this dataset. The core innovation of IQL relevant to this domain is its use of expectile regression for the Value function:
+\[ L_V(\psi) = \mathbb{E}_{(s,a) \sim \mathcal{D}} [L_2^\tau(Q(s,a) - V(s))] \]
+With an expectile $\tau = 0.7$, the Value network does not learn the \textit{average} return of the dataset (which would be mediocre). This specific $\tau$ value acts as a risk-averse filter, enabling the observed variance reduction by focusing on higher-reward trajectories. Instead, it approximates the $70^{th}$ percentile of returns. It learns to value states based on the \textit{best} trajectories in the history, effectively ignoring the failures caused by poor $(s, S)$ parameters. The Actor network then extracts this high-value behavior via advantage-weighted regression, allowing it to outperform the average behavior of the data generator.

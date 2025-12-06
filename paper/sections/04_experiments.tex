@@ -1,0 +1,24 @@
+\subsection{Experimental Setup}
+All experiments were conducted on the \texttt{InvManagement-v1} environment. The supply chain parameters were set as follows:
+\begin{itemize}
+    \item \textbf{Lead Times}: $[3, 5, 10]$ periods for Retailer, Distributor, and Manufacturer respectively.
+    \item \textbf{Prices \& Costs}: Sale price decreases and production cost increases upstream, incentivizing efficient flow.
+    \item \textbf{Episode Length}: 30 periods.
+\end{itemize}
+
+\subsection{Training Details}
+We generated a dataset consisting of 2,000 episodes (60,000 transitions) using the randomized Min-Max strategy described in Section \ref{sec:methodology}.
+The IQL agent was trained for 100 epochs with a batch size of 256. The hyperparameters were set to:
+\begin{itemize}
+    \item Discount factor $\gamma = 0.99$
+    \item Expectile $\tau = 0.7$
+    \item Temperature $\beta = 1.0$
+    \item Learning Rate = $1 \times 10^{-5}$
+\end{itemize}
+
+\subsection{Baselines}
+We compare the trained IQL agent against the stochastic policy used to generate the data:
+\begin{itemize}
+    \item \textbf{Randomized Min-Max}: A policy where $(s, S)$ parameters are sampled randomly for every episode. This represents the average performance of the heuristic strategies contained in the dataset.
+\end{itemize}
+Evaluation is performed over 50 unseen test episodes to ensure statistical significance.

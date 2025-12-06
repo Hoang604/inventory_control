@@ -1,0 +1,109 @@
+\documentclass[journal]{IEEEtran}
+%\documentclass[onecolumn,12pt,draftclsnofoot]{IEEEtran}
+%
+%
+%\ifCLASSINFOpdf
+
+%\else
+
+%\fi
+\setlength{\abovedisplayskip}{2.5pt}
+\setlength{\belowdisplayskip}{2.5pt}
+\hyphenation{op-tical net-works semi-conduc-tor}
+%\usepackage{CJK}
+\usepackage{amsmath}
+\usepackage[short]{optidef}
+
+% \usepackage{algorithmic}  
+% \usepackage{algorithm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{color}
+\usepackage{tabularx}
+\usepackage{mathtools}
+%\usepackage[normalem]{ulem}
+%\usepackage{arydshln}
+\usepackage{float}
+\usepackage{enumerate}
+\usepackage{algorithm,amsmath,amssymb,amsfonts}
+\usepackage{algpseudocode}
+
+\algrenewcommand\alglinenumber[1]{%
+  \footnotesize\global\boldnumberfalse#1:
+}
+
+\algnewcommand{\Inputs}[1]{%
+  \State \textbf{Inputs:}
+  \Statex \hspace*{\algorithmicindent}\parbox[t]{.8\linewidth}{\raggedright #1}
+}
+
+\algnewcommand{\Initialize}[1]{%
+  \State \textbf{Initialize:} \hspace*{\algorithmicindent}\parbox[t]{.8\linewidth}{\raggedright #1}
+}
+
+\usepackage{subcaption}
+\usepackage{subfig}
+%\usepackage{bbm,pifont}
+%\usepackage{pstool}
+%\ifCLASSOPTIONcompsoc
+%\usepackage[caption=false, font=normalsize, labelfont=sf, textfont=sf]{subfig}
+%\else
+%\usepackage[caption=false, font=footnotesize]{subfig}
+%\fi
+\hyphenation{op-tical net-works semi-conduc-tor}
+\hyphenation{op-tical net-works semi-conduc-tor}
+\newtheorem{theorem}{\bf{Theorem}}
+\newtheorem{lemma}{\bf{Lemma}}
+\newtheorem{proposition}{\bf{Proposition}}[section]
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{remark}{\bf{Remark}}
+\newcommand{\bm}[1]{\mbox{\boldmath{$#1$}}}
+\title{Offline Reinforcement Learning for Robust Multi-Echelon Inventory Control}
+\author{Dinh Viet Hoang}
+\date{October 2025}
+
+% --- BEGIN DOCUMENT ---
+\begin{document}
+
+\maketitle % Display the title
+
+% --- ABSTRACT ---
+\input{sections/00_abstract.tex}
+
+% --- MAIN CONTENT ---
+\section{Introduction}
+\label{sec:introduction}
+\input{sections/01_introduction.tex}
+
+\section{Related Work}
+\label{sec:related_work}
+\input{sections/02_related_work.tex}
+
+\section{Methodology}
+\label{sec:methodology}
+\input{sections/03_methodology.tex}
+
+\section{Experiments}
+\label{sec:experiments}
+\input{sections/04_experiments.tex}
+
+\section{Results and Discussion}
+\label{sec:results}
+\input{sections/05_results.tex}
+
+\section{Conclusion}
+\label{sec:conclusion}
+\input{sections/06_conclusion.tex}
+
+% --- BIBLIOGRAPHY ---
+\bibliographystyle{plainnat} % Or choose another style like abbrvnat, unsrtnat
+\bibliography{references.bib}
+
+\end{document}

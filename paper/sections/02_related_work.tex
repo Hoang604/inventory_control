@@ -1,0 +1,10 @@
+\subsection{The Limits of Heuristics}
+Inventory theory has long been dominated by heuristic policies like the $(s, S)$ rule, which orders up to $S$ whenever inventory falls below $s$. While optimal under strict theoretical assumptions (e.g., fixed costs, i.i.d. demand), their real-world performance hinges entirely on parameter tuning. As our baseline experiments demonstrate, a randomized $(s, S)$ policy is a gamble: it can be highly profitable or disastrously costly depending on how well its parameters match the current demand volatility.
+
+\subsection{Online RL: A Simulation Artifact}
+The application of Deep RL to inventory management has been extensively explored in simulation \cite{hubbs2020orgym}. Approaches using DQN and PPO have shown the ability to outperform heuristics by adapting to complex lead-time dynamics. However, these works implicitly assume the availability of a high-fidelity simulator that perfectly mirrors the real world—a ``Sim2Real'' luxury that few organizations possess. For the vast majority of supply chains, the only available ground truth is the historical log of past transactions.
+
+\subsection{Offline RL as the Industrial Path}
+Offline RL eliminates the need for simulators by learning from fixed datasets. However, standard off-policy algorithms (like DQN) fail in this setting due to the ``Winner's Curse'': they overestimate the value of unobserved actions, leading to policy collapse. Conservative Q-Learning (CQL) attempts to fix this by penalizing unseen actions, but this often leads to overly conservative behavior.
+
+Implicit Q-Learning (IQL) \cite{kostrikov2021iql} represents a paradigm shift. Instead of constraining the policy, it treats value estimation as a supervised learning problem. By regressing on the upper expectiles of the value distribution, IQL effectively asks, ``What is the best outcome we have seen in a similar state?'' and learns to reproduce that specific outcome. We posit that this mechanism is uniquely suited for SCM, where the goal is often to identify and stabilize the specific behaviors that led to rare, high-performance periods in the historical log.

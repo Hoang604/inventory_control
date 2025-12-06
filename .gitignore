@@ -5,3 +5,9 @@ __pycache__/
 *.pyo
 *.pyd
 *.log
+logs
+checkpoints
+data
+*.csv
+*.md
+!README.md

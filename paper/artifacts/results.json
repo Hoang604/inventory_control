@@ -1,0 +1,20 @@
+{
+    "baseline": {
+        "name": "Randomized Min-Max Policy",
+        "mean_reward": 54.805431963508354,
+        "std_dev": 113.73142146241051,
+        "n_episodes": 50
+    },
+    "method": {
+        "name": "IQL Agent",
+        "mean_reward": 123.54477611021281,
+        "std_dev": 8.880497227964558,
+        "n_episodes": 50
+    },
+    "comparison": {
+        "absolute_improvement": 68.73934414670445,
+        "percent_improvement": 125.42432690335121,
+        "p_value": 0.0001044282085843791,
+        "statistically_significant": true
+    }
+}

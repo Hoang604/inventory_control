@@ -6,12 +6,18 @@ import logging
 import datetime
 from pathlib import Path
 from torch.utils.tensorboard import SummaryWriter
+import pandas as pd
+import os
 
 from .critics import VNet, QNet
 from .actor import Actor
 
 
 class IQLAgent:
+    """
+    Implicit Q-Learning (IQL) agent.
+    """
+
     def __init__(self, device, actor: Actor, q_net: QNet, target_net: QNet, v_net: VNet, tau: float, gamma: float, alpha: float, beta: float, v_optimizer: Optimizer, q_optimizer: Optimizer, actor_optimizer: Optimizer, config):
         self.device = device
         self.actor = actor
@@ -27,170 +33,422 @@ class IQLAgent:
         self.actor_optimizer = actor_optimizer
         self.logger = logging.getLogger(__name__)
         self.config = config
+        self.q_v_history = []
+        self.actor_history = []
 
     def _perform_one_batch_step_for_v_net(self, state_batch: torch.Tensor, target_batch: torch.Tensor, batch_step):
         v_output: torch.Tensor = self.v_net(state_batch)
-        self.writer.add_scalar('Value/avg_v_value',
-                               v_output.mean().item(), batch_step)
+        v_mean = v_output.mean().item()
+        
+        if batch_step % 100 == 0:
+            self.writer.add_scalar('Value/avg_v_value', v_mean, batch_step)
+        
         error = target_batch - v_output
         loss = torch.where(error > 0, self.tau, 1 - self.tau) * error ** 2
         mean_loss = loss.mean()
-        self.writer.add_scalar('Loss/v_loss', mean_loss.item(), batch_step)
+        
+        if batch_step % 100 == 0:
+            self.writer.add_scalar('Loss/v_loss', mean_loss.item(), batch_step)
+            
         self.v_optimizer.zero_grad()
         mean_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.v_net.parameters(), max_norm=1.0)
         self.v_optimizer.step()
-        return mean_loss
+        return mean_loss, v_mean
 
     def _perform_one_batch_step_for_q_net(self, reward_batch: torch.Tensor, state_batch: torch.Tensor, action_batch: torch.Tensor, estimated_v_for_next_state: torch.Tensor, batch_step):
-        q_input = torch.cat((state_batch, action_batch), dim=1)
-        q_output: torch.Tensor = self.q_net(q_input)
-        self.writer.add_scalar('Value/avg_q_value',
-                               q_output.mean().item(), batch_step)
+        q_output: torch.Tensor = self.q_net(state_batch, action_batch)
+        q_mean = q_output.mean().item()
+        
+        if batch_step % 100 == 0:
+            q_min = q_output.min().item()
+            q_max = q_output.max().item()
+            self.logger.info(
+                f"Batch {batch_step} | Q-Values - Mean: {q_mean:.4f}, Min: {q_min:.4f}, Max: {q_max:.4f}")
+            self.writer.add_scalar('Value/avg_q_value', q_mean, batch_step)
+
         target_q = reward_batch + self.gamma * estimated_v_for_next_state
         loss: torch.Tensor = (target_q - q_output)**2
         mean_loss = loss.mean()
-        self.writer.add_scalar('Loss/q_loss', mean_loss.item(), batch_step)
+        
+        if batch_step % 100 == 0:
+            self.writer.add_scalar('Loss/q_loss', mean_loss.item(), batch_step)
+            
         self.q_optimizer.zero_grad()
         mean_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.q_net.parameters(), max_norm=1.0)
         self.q_optimizer.step()
-        return mean_loss
+        return mean_loss, q_mean
 
     def _soft_update_target_net(self):
         with torch.no_grad():
             for target_param, q_param in zip(self.target_net.parameters(), self.q_net.parameters()):
                 target_param.data.copy_(
                     target_param * (1 - self.alpha) + q_param * self.alpha)
-                # copy_ copy the thing in (...) to taget_param.data, not make a copy of target_param.data
 
     def _perform_one_batch_step_for_actor_net(self, state_batch, action_batch, batch_step):
         with torch.no_grad():
-            target_net_input = torch.cat((state_batch, action_batch), dim=1)
-            target_net_ouput: torch.Tensor = self.target_net(target_net_input)
+            target_net_ouput: torch.Tensor = self.target_net(
+                state_batch, action_batch)
             v_net_output: torch.Tensor = self.v_net(state_batch)
             advantage = target_net_ouput - v_net_output
-            self.writer.add_scalar(
-                'Value/advantage', advantage.mean().item(), batch_step)
-            weight = torch.exp(self.beta*advantage)
+            adv_mean = advantage.mean().item()
+            
+            if batch_step % 100 == 0:
+                self.writer.add_scalar(
+                    'Value/advantage', adv_mean, batch_step)
+            
+            weight = torch.exp(self.beta * advantage)
+            weight = torch.clamp(weight, max=100.0)
 
         log_probs, entropy, action_mean = self.actor.evaluate(
             state_batch, action_batch)
+        
+        entropy_mean = entropy.mean().item()
 
-        self.writer.add_scalar(
-            'Actor/entropy', entropy.mean().item(), batch_step)
-        self.writer.add_scalar('Actor/action_mean',
-                               action_mean.mean().item(), batch_step)
+        if batch_step % 100 == 0:
+            self.writer.add_scalar(
+                'Actor/entropy', entropy_mean, batch_step)
+            self.writer.add_scalar('Actor/action_mean',
+                                   action_mean.mean().item(), batch_step)
 
-        # We want to MAXIMIZE the weighted log_probs, so we MINIMIZE its negative
         loss: torch.Tensor = - (weight * log_probs)
         mean_loss = loss.mean()
-        self.writer.add_scalar('Loss/actor_loss', mean_loss.item(), batch_step)
+        
+        if batch_step % 100 == 0:
+            self.writer.add_scalar('Loss/actor_loss', mean_loss.item(), batch_step)
 
         self.actor_optimizer.zero_grad()
         mean_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
         self.actor_optimizer.step()
-        return mean_loss
+        return mean_loss, entropy_mean, adv_mean
 
-    def train_q_and_v(self, dataloader: DataLoader, epochs, resume_v_path, resume_q_path):
+    def _validate_q_v(self, val_dataloader):
+        self.v_net.eval()
+        self.q_net.eval()
+        self.target_net.eval()
+        
+        total_v_loss = 0
+        total_q_loss = 0
+        
+        all_q_outputs = [] # To accumulate Q-values for mean/std calculation
+        batch_count = 0
+        
+        with torch.no_grad():
+            for state_batch, action_batch, reward_batch, next_state_batch in val_dataloader:
+                state_batch = state_batch.to(self.device)
+                action_batch = action_batch.to(self.device)
+                reward_batch = reward_batch.to(self.device)
+                next_state_batch = next_state_batch.to(self.device)
+
+                # Calculate V Loss
+                target_q = self.target_net(state_batch, action_batch)
+                v_output = self.v_net(state_batch)
+                v_error = target_q - v_output
+                v_loss = torch.where(v_error > 0, self.tau, 1 - self.tau) * v_error ** 2
+                total_v_loss += v_loss.mean().item()
+
+                # Calculate Q Loss
+                estimated_v_next = self.v_net(next_state_batch)
+                target_q_val = reward_batch + self.gamma * estimated_v_next
+                q_output = self.q_net(state_batch, action_batch)
+                q_loss = ((target_q_val - q_output)**2).mean()
+                total_q_loss += q_loss.item()
+                
+                all_q_outputs.append(q_output.cpu()) # Store on CPU to avoid GPU memory issues if validation set is large
+                
+                batch_count += 1
+        
+        self.v_net.train()
+        self.q_net.train()
+        self.target_net.train()
+        
+        all_q_outputs_tensor = torch.cat(all_q_outputs)
+        val_q_mean = all_q_outputs_tensor.mean().item()
+        val_q_std = all_q_outputs_tensor.std().item()
+
+        return total_v_loss / batch_count, total_q_loss / batch_count, val_q_mean, val_q_std
+
+    def _validate_actor(self, val_dataloader):
+        self.actor.eval()
+        self.v_net.eval()
+        self.target_net.eval()
+        self.q_net.eval() # Use Q-net for evaluation
+        
+        total_loss = 0
+        total_q_val = 0 # Accumulator for EPV (Estimated Policy Value)
+        batch_count = 0
+        
+        with torch.no_grad():
+            for state_batch, action_batch, _, _ in val_dataloader:
+                state_batch = state_batch.to(self.device)
+                action_batch = action_batch.to(self.device)
+                
+                # 1. Calculate Actor Loss (Behavior Cloning / Advantage Weighted)
+                target_q = self.target_net(state_batch, action_batch)
+                v_val = self.v_net(state_batch)
+                advantage = target_q - v_val
+                weight = torch.exp(self.beta * advantage)
+                weight = torch.clamp(weight, max=100.0)
+
+                log_probs, _, _ = self.actor.evaluate(state_batch, action_batch)
+                loss = - (weight * log_probs).mean()
+                total_loss += loss.item()
+                
+                # 2. Calculate EPV: Q-value of the Actor's predicted action
+                # We ask the Actor: "What would you do here?"
+                # Note: .evaluate returns action_mean, which is the deterministic action
+                _, _, pred_action = self.actor.evaluate(state_batch, action_batch) 
+                # We ask the Critic: "How good is that action?"
+                pred_q_val = self.q_net(state_batch, pred_action)
+                total_q_val += pred_q_val.mean().item()
+
+                batch_count += 1
+                
+        self.actor.train()
+        self.v_net.train()
+        self.target_net.train()
+        self.q_net.train()
+        
+        return total_loss / batch_count, total_q_val / batch_count
+
+    def train_q_and_v(self, dataloader: DataLoader, val_dataloader: DataLoader, epochs, resume_v_path, resume_q_path):
         self.logger.info("Training Q and V functions...")
         if resume_v_path:
-            v_best_loss, v_continue_epoch = self._load_model(
-                model_name='v_net', file_path=resume_v_path)
-        else:
-            v_best_loss = torch.inf
-            v_continue_epoch = 0
+            _, _ = self._load_model(model_name='v_net', file_path=resume_v_path)
         if resume_q_path:
-            q_best_loss, q_continue_epoch = self._load_model(
-                model_name='q_net', file_path=resume_q_path)
-        else:
-            q_best_loss = torch.inf
-            q_continue_epoch = 0
+            _, _ = self._load_model(model_name='q_net', file_path=resume_q_path)
+        
+        q_best_loss = torch.inf # Reverted to minimizing Loss
+        
+        start_epoch = 0 
 
-        start_epoch = min(v_continue_epoch, q_continue_epoch)
-        global_step = start_epoch * len(dataloader)
-        for epoch in tqdm(range(start_epoch, epochs)):
-            v_mean_loss = 0
-            q_mean_loss = 0
-            for state_batch, action_batch, reward_batch, next_state_batch in enumerate(dataloader):
+        global_step = 0
+        pbar = tqdm.tqdm(range(start_epoch, epochs))
+        logged_device = False
+        
+        epoch_metrics = []
+
+        for epoch in pbar:
+            total_v_loss = 0
+            total_q_loss = 0
+            total_q_val = 0
+            total_v_val = 0
+            batch_count = 0
+
+            # Training Loop
+            for state_batch, action_batch, reward_batch, next_state_batch in dataloader:
+                state_batch = state_batch.to(self.device)
+                action_batch = action_batch.to(self.device)
+                reward_batch = reward_batch.to(self.device)
+                next_state_batch = next_state_batch.to(self.device)
+
+                if not logged_device:
+                    self.logger.info(f"Training batch tensors are on device: {state_batch.device}")
+                    logged_device = True
+
                 with torch.no_grad():
                     target_batch = self.target_net(state_batch, action_batch)
-                v_loss = self._perform_one_batch_step_for_v_net(
+
+                v_loss, v_val = self._perform_one_batch_step_for_v_net(
                     state_batch, target_batch, global_step)
-                v_mean_loss = v_mean_loss * global_step / \
-                    (global_step + 1) + v_loss / (global_step + 1)
+                total_v_loss += v_loss.item()
+                total_v_val += v_val
+
                 with torch.no_grad():
                     estimated_v_for_next_state: torch.Tensor = self.v_net(
                         next_state_batch)
-                q_loss = self._perform_one_batch_step_for_q_net(
+
+                q_loss, q_val = self._perform_one_batch_step_for_q_net(
                     reward_batch, state_batch, action_batch, estimated_v_for_next_state, global_step)
-                q_mean_loss = q_mean_loss * global_step / \
-                    (global_step + 1) + q_loss / (global_step + 1)
+                total_q_loss += q_loss.item()
+                total_q_val += q_val
+
                 self._soft_update_target_net()
                 global_step += 1
-            if v_mean_loss < v_best_loss:
-                self.logger.info(
-                    "New best loss for v_net, update new best loss and saving best model...")
-                v_best_loss = v_mean_loss
-                self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='v_net', loss=v_best_loss)
-            if q_mean_loss < q_best_loss:
-                self.logger.info(
-                    "New best loss for q_net, update new best loss and saving best model...")
-                q_best_loss = q_mean_loss
+                batch_count += 1
+
+            v_mean_loss = total_v_loss / batch_count
+            q_mean_loss = total_q_loss / batch_count
+            avg_q_val = total_q_val / batch_count
+            avg_v_val = total_v_val / batch_count
+            
+            # Validation Loop - Get mean and std for Diagnostics (but use Loss for saving)
+            val_v_loss, val_q_loss, val_q_mean, val_q_std = self._validate_q_v(val_dataloader)
+            self.writer.add_scalar('Loss/val_v_loss', val_v_loss, global_step)
+            self.writer.add_scalar('Loss/val_q_loss', val_q_loss, global_step)
+            
+            # We still calculate stability score for logs, but don't use it for stopping
+            stability_score = val_q_mean - 1.0 * val_q_std
+            self.writer.add_scalar('Value/val_q_mean', val_q_mean, global_step)
+            self.writer.add_scalar('Value/val_q_std', val_q_std, global_step)
+            self.writer.add_scalar('Value/stability_score', stability_score, global_step)
+            
+            pbar.set_postfix(V_Loss=f"{v_mean_loss:.4f}",
+                             Q_Loss=f"{q_mean_loss:.4f}",
+                             Val_Q_Loss=f"{val_q_loss:.4f}",
+                             Stability_Score=f"{stability_score:.2f}")
+
+            epoch_metrics.append({
+                'epoch': epoch,
+                'q_loss': q_mean_loss,
+                'v_loss': v_mean_loss,
+                'val_q_loss': val_q_loss,
+                'val_v_loss': val_v_loss,
+                'avg_q_val': avg_q_val,
+                'avg_v_val': avg_v_val,
+                'val_q_mean': val_q_mean,
+                'val_q_std': val_q_std,
+                'stability_score': stability_score
+            })
+
+            # SAVE CHECKPOINT LOGIC: Reverted to Minimizing Validation Q-Loss
+            if val_q_loss < q_best_loss:
+                q_best_loss = val_q_loss
                 self._save_checkpoint(
                     epoch, save_best_loss=True, model_name='q_net', loss=q_best_loss)
+                self._save_checkpoint(
+                    epoch, save_best_loss=True, model_name='v_net', loss=val_v_loss)
 
             if (epoch + 1) % 5 == 0:
-                self.logger.info(
-                    f"Saving periodic checkpoint for epoch {epoch + 1}")
                 self._save_checkpoint(
-                    epoch, save_best_loss=False, model_name='v_net', loss=v_mean_loss)
+                    epoch, save_best_loss=False, model_name='v_net', loss=val_v_loss)
                 self._save_checkpoint(
-                    epoch, save_best_loss=False, model_name='q_net', loss=q_mean_loss)
+                    epoch, save_best_loss=False, model_name='q_net', loss=val_q_loss)
+        
+        return epoch_metrics
 
-    def train_actor(self, dataloader: DataLoader, epochs, resume_training_path=None):
+    def train_actor(self, dataloader: DataLoader, val_dataloader: DataLoader, epochs, resume_training_path=None):
         self.logger.info("Extracting Policy (training actor)...")
         if resume_training_path:
-            start_epoch, actor_best_loss = self._load_model(
-                model_name='actor', file_path=resume_training_path)
-        else:
-            actor_best_loss = torch.inf
-            start_epoch = 0
+           _, _ = self._load_model(model_name='actor', file_path=resume_training_path)
+        
+        best_actor_q_mean = -torch.inf # Initialize for maximization
+        start_epoch = 0
 
-        global_step = start_epoch * len(dataloader)
-        for epoch in tqdm(range(start_epoch, epochs)):
-            actor_mean_loss = 0
-            for state_batch, action_batch, _, _ in enumerate(dataloader):
-                actor_loss = self._perform_one_batch_step_for_actor_net(
+        global_step = 0
+        pbar = tqdm.tqdm(range(start_epoch, epochs))
+        
+        epoch_metrics = []
+        
+        for epoch in pbar:
+            total_actor_loss = 0
+            total_entropy = 0
+            total_advantage = 0
+            batch_count = 0
+
+            # Training Loop
+            for state_batch, action_batch, _, _ in dataloader:
+                state_batch = state_batch.to(self.device)
+                action_batch = action_batch.to(self.device)
+
+                actor_loss, entropy, adv = self._perform_one_batch_step_for_actor_net(
                     state_batch, action_batch, global_step)
-                actor_mean_loss = actor_mean_loss * \
-                    global_step / (global_step + 1) + \
-                    actor_loss / (global_step + 1)
+
+                total_actor_loss += actor_loss.item()
+                total_entropy += entropy
+                total_advantage += adv
                 global_step += 1
-            if actor_mean_loss < actor_best_loss:
-                self.logger.info(
-                    "New best loss for actor_net, update new best loss and saving best model...")
-                actor_best_loss = actor_mean_loss
+                batch_count += 1
+
+            actor_mean_loss = total_actor_loss / batch_count
+            avg_entropy = total_entropy / batch_count
+            avg_advantage = total_advantage / batch_count
+            
+            # Validation Loop
+            val_actor_loss, val_actor_q_mean = self._validate_actor(val_dataloader)
+            self.writer.add_scalar('Loss/val_actor_loss', val_actor_loss, global_step)
+            self.writer.add_scalar('Value/val_actor_q_mean', val_actor_q_mean, global_step)
+            
+            pbar.set_postfix(Actor_Loss=f"{actor_mean_loss:.4f}", 
+                             Val_Loss=f"{val_actor_loss:.4f}",
+                             Val_Q_Mean=f"{val_actor_q_mean:.4f}")
+
+            epoch_metrics.append({
+                'epoch': epoch,
+                'actor_loss': actor_mean_loss,
+                'val_actor_loss': val_actor_loss,
+                'val_actor_q_mean': val_actor_q_mean,
+                'avg_entropy': avg_entropy,
+                'avg_advantage': avg_advantage
+            })
+
+            # SAVE CHECKPOINT LOGIC: Based on MAXIMIZING ESTIMATED POLICY VALUE (EPV)
+            if val_actor_q_mean > best_actor_q_mean:
+                best_actor_q_mean = val_actor_q_mean
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='actor_net', loss=actor_best_loss)
+                    epoch, save_best_loss=True, model_name='actor', loss=best_actor_q_mean) # Loss field stores Q-mean
 
             if (epoch + 1) % 5 == 0:
-                self.logger.info(
-                    f"Saving periodic checkpoint for epoch {epoch + 1}")
                 self._save_checkpoint(
-                    epoch, save_best_loss=False, model_name='actor', loss=actor_mean_loss)
+                    epoch, save_best_loss=False, model_name='actor', loss=val_actor_loss)
+        
+        return epoch_metrics
 
-    def train(self, dataloader: DataLoader, epochs, resume_q_path, resume_v_path, resume_actor_path, experimental_name=None, base_logging_path="/home/hoang/python/inventory_control/logs", base_checkpoint_path="/home/hoang/python/inventory_control/checkpoints"):
+    def export_diagnostics(self, q_v_metrics, actor_metrics, file_path="training_diagnostics.csv"):
+        q_v_df = pd.DataFrame(q_v_metrics)
+        actor_df = pd.DataFrame(actor_metrics)
+        
+        if not q_v_df.empty and not actor_df.empty:
+            full_df = pd.merge(q_v_df, actor_df, on='epoch', how='outer')
+        elif not q_v_df.empty:
+            full_df = q_v_df
+        elif not actor_df.empty:
+            full_df = actor_df
+        else:
+            return
+
+        full_df.sort_values(by='epoch', inplace=True)
+        full_df.to_csv(self.log_path / file_path, index=False)
+        self.logger.info(f"Detailed diagnostics exported to {self.log_path / file_path}")
+
+    def train(self, dataloader: DataLoader, val_dataloader: DataLoader, epochs, resume_q_path, resume_v_path, resume_actor_path, experimental_name=None, base_logging_path="/home/hoang/python/inventory_control/logs", base_checkpoint_path="/home/hoang/python/inventory_control/checkpoints"):
         self._create_new_experimental(
             experimental_name, base_logging_path, base_checkpoint_path)
-        self.train_q_and_v(
-            dataloader, epochs, resume_v_path=resume_v_path, resume_q_path=resume_q_path)
+        
+        q_v_metrics = self.train_q_and_v(
+            dataloader, val_dataloader, epochs, resume_v_path=resume_v_path, resume_q_path=resume_q_path)
 
-        self.train_actor(dataloader, epochs,
+        # --- RELOAD BEST CHECKPOINTS FOR ACTOR TRAINING ---
+        self.logger.info("Reloading 'best_loss.pth' for Q and V networks before training Actor...")
+        
+        best_q_path = self.checkpoint_path / "q_net" / "best_loss.pth"
+        best_v_path = self.checkpoint_path / "v_net" / "best_loss.pth"
+
+        if best_q_path.exists():
+            self._load_model('q_net', str(best_q_path))
+            # Sync target net with the best Q-net to ensure consistency
+            self.target_net.load_state_dict(self.q_net.state_dict())
+            self.logger.info("Target Network synced with Best Q-Network.")
+        else:
+            self.logger.warning(f"Best Q-Net checkpoint not found at {best_q_path}. Using final epoch weights.")
+
+        if best_v_path.exists():
+            self._load_model('v_net', str(best_v_path))
+        else:
+            self.logger.warning(f"Best V-Net checkpoint not found at {best_v_path}. Using final epoch weights.")
+        # --------------------------------------------------
+
+        actor_metrics = self.train_actor(dataloader, val_dataloader, epochs,
                          resume_training_path=resume_actor_path)
 
+        self.export_diagnostics(q_v_metrics, actor_metrics)
+
     def _create_new_experimental(self, experimental_name=None, base_logging_path=None, base_checkpoint_path=None):
+        """
+        Creates a new experiment by setting up logging and checkpoint directories.
+
+        Args:
+            experimental_name: The name of the experiment. If not provided, a name will be generated based on the current timestamp.
+            base_logging_path: The base path for logging.
+            base_checkpoint_path: The base path for saving checkpoints.
+        """
+        timestamp = datetime.datetime.now().strftime(format='%d%m%Y_%H%M%S')
         if not experimental_name:
-            experimental_name = f"{datetime.datetime.now().strftime(format="%d%m%Y_%H%M%S")}_experimental"
+            experimental_name = f"{timestamp}_experimental"
+        else:
+            experimental_name = f"{experimental_name}_{timestamp}"
 
         self.log_path = Path(base_logging_path) / experimental_name
         self.checkpoint_path = Path(base_checkpoint_path) / experimental_name
@@ -202,23 +460,36 @@ class IQLAgent:
             f"Create new experimental: {experimental_name}; logging at: {self.log_path}; checkpoint saved at: {self.checkpoint_path}")
 
     def _save_checkpoint(self, epoch: int, save_best_loss: bool, model_name: str, loss: float):
+        """
+        Saves a checkpoint of a model.
+
+        Args:
+            epoch: The current epoch number.
+            save_best_loss: Whether to save the checkpoint as the best loss checkpoint.
+            model_name: The name of the model to save ('actor', 'q_net', or 'v_net').
+            loss: The loss of the model.
+        """
         checkpoint_name = f"checkpoint_epoch_{epoch}.pth" if not save_best_loss else "best_loss.pth"
         if model_name == 'actor':
             model_to_save = self.actor
             optimizer_to_save = self.actor_optimizer
-            checkpoint_file_path = self.checkpoint_path / "actor" / checkpoint_name
+            checkpoint_dir = self.checkpoint_path / "actor"
         elif model_name == 'q_net':
             model_to_save = self.q_net
             optimizer_to_save = self.q_optimizer
-            checkpoint_file_path = self.checkpoint_path / "q_net" / checkpoint_name
+            checkpoint_dir = self.checkpoint_path / "q_net"
         elif model_name == 'v_net':
             model_to_save = self.v_net
             optimizer_to_save = self.v_optimizer
-            checkpoint_file_path = self.checkpoint_path / "v_net" / checkpoint_name
+            checkpoint_dir = self.checkpoint_path / "v_net"
         else:
             self.logger.error(
                 f"The model name can only take 'actor', 'q_net', 'v_net' but got {model_name}")
             return
+
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        checkpoint_file_path = checkpoint_dir / checkpoint_name
 
         checkpoint = {
             'epoch': epoch,
@@ -229,7 +500,8 @@ class IQLAgent:
         }
 
         torch.save(checkpoint, checkpoint_file_path)
-        self.logger.info(f"Saved {model_name} model to {checkpoint_file_path}")
+        # Removed logging to suppress checkpoint save messages
+        # self.logger.info(f"Saved {model_name} model to {checkpoint_file_path}")
 
     def _load_model(self, model_name: str, file_path: str):
         """

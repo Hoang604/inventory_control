@@ -1,0 +1,16 @@
+{
+    "status": "success",
+    "metrics": {
+        "q_trend_slope": 2.1175394094138564,
+        "q_explosion_flag": true,
+        "entropy_trend_slope": 0.00036062713133842573,
+        "min_entropy": 1.093559695003515,
+        "advantage_trend_slope": 3.7303586295761985e-06
+    },
+    "flags": {
+        "q_value_explosion": true,
+        "mode_collapse": false,
+        "value_divergence": false
+    },
+    "summary": "CRITICAL FAILURE: Value Divergence. The critic is overestimating rewards, causing the actor to chase fake high-value actions."
+}

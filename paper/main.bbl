@@ -1,0 +1,28 @@
+\begin{thebibliography}{4}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Hubbs et~al.(2020)Hubbs, Perez, Sarwar, Sahinidis, Grossmann, and Wassick]{hubbs2020orgym}
+Christian~D Hubbs, Hector~D Perez, Owais Sarwar, Nikolaos~V Sahinidis, Ignacio~E Grossmann, and John~M Wassick.
+\newblock Or-gym: A reinforcement learning library for operations research problems.
+\newblock \emph{arXiv preprint arXiv:2008.06319}, 2020.
+
+\bibitem[Kostrikov et~al.(2021)Kostrikov, Nair, and Levine]{kostrikov2021iql}
+Ilya Kostrikov, Ashvin Nair, and Sergey Levine.
+\newblock Offline reinforcement learning with implicit q-learning.
+\newblock \emph{arXiv preprint arXiv:2110.06169}, 2021.
+
+\bibitem[Levine et~al.(2020)Levine, Kumar, Tucker, and Fu]{levine2020offline}
+Sergey Levine, Aviral Kumar, George Tucker, and Justin Fu.
+\newblock Offline reinforcement learning: Tutorial, review, and perspectives on open problems.
+\newblock \emph{arXiv preprint arXiv:2005.01643}, 2020.
+
+\bibitem[Silver et~al.(2016)Silver, Pyke, and Thomas]{silver2016inventory}
+Edward~A Silver, David~F Pyke, and Douglas~J Thomas.
+\newblock \emph{Inventory management and production planning and scheduling}.
+\newblock CRC press, 2016.
+
+\end{thebibliography}

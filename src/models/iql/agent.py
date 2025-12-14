@@ -37,9 +37,13 @@ class IQLAgent:
         self.q_v_history = []
         self.actor_history = []
         
+        # --- Configurable Parameters ---
+        self.log_interval = config['training'].get('log_interval', 100)
+        self.checkpoint_interval = config['training'].get('checkpoint_interval', 5)
+        self.grad_norm_clip = config['training'].get('grad_norm_clip', 1.0)
+        self.adv_weight_clip = config['training'].get('adv_weight_clip', 100.0)
+        
         # --- Scheduler Initialization ---
-        # Using T_max = epochs (will be set/updated in train loop if needed, but for now assuming T_max=100 from config)
-        # Defaulting to config['training']['epochs'] if available, else 100.
         epochs = config['training'].get('epochs', 100)
         eta_min = float(config['iql'].get('eta_min', 1e-6))
         
@@ -51,19 +55,19 @@ class IQLAgent:
         v_output: torch.Tensor = self.v_net(state_batch)
         v_mean = v_output.mean().item()
         
-        if batch_step % 100 == 0:
+        if batch_step % self.log_interval == 0:
             self.writer.add_scalar('Value/avg_v_value', v_mean, batch_step)
         
         error = target_batch - v_output
         loss = torch.where(error > 0, self.tau, 1 - self.tau) * error ** 2
         mean_loss = loss.mean()
         
-        if batch_step % 100 == 0:
+        if batch_step % self.log_interval == 0:
             self.writer.add_scalar('Loss/v_loss', mean_loss.item(), batch_step)
             
         self.v_optimizer.zero_grad()
         mean_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.v_net.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(self.v_net.parameters(), max_norm=self.grad_norm_clip)
         self.v_optimizer.step()
         return mean_loss, v_mean
 
@@ -71,7 +75,7 @@ class IQLAgent:
         q_output: torch.Tensor = self.q_net(state_batch, action_batch)
         q_mean = q_output.mean().item()
         
-        if batch_step % 100 == 0:
+        if batch_step % self.log_interval == 0:
             q_min = q_output.min().item()
             q_max = q_output.max().item()
             self.logger.info(
@@ -82,12 +86,12 @@ class IQLAgent:
         loss: torch.Tensor = (target_q - q_output)**2
         mean_loss = loss.mean()
         
-        if batch_step % 100 == 0:
+        if batch_step % self.log_interval == 0:
             self.writer.add_scalar('Loss/q_loss', mean_loss.item(), batch_step)
             
         self.q_optimizer.zero_grad()
         mean_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q_net.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(self.q_net.parameters(), max_norm=self.grad_norm_clip)
         self.q_optimizer.step()
         return mean_loss, q_mean
 
@@ -105,19 +109,19 @@ class IQLAgent:
             advantage = target_net_ouput - v_net_output
             adv_mean = advantage.mean().item()
             
-            if batch_step % 100 == 0:
+            if batch_step % self.log_interval == 0:
                 self.writer.add_scalar(
                     'Value/advantage', adv_mean, batch_step)
             
             weight = torch.exp(self.beta * advantage)
-            weight = torch.clamp(weight, max=100.0)
+            weight = torch.clamp(weight, max=self.adv_weight_clip)
 
         log_probs, entropy, action_mean = self.actor.evaluate(
             state_batch, action_batch)
         
         entropy_mean = entropy.mean().item()
 
-        if batch_step % 100 == 0:
+        if batch_step % self.log_interval == 0:
             self.writer.add_scalar(
                 'Actor/entropy', entropy_mean, batch_step)
             self.writer.add_scalar('Actor/action_mean',
@@ -126,12 +130,12 @@ class IQLAgent:
         loss: torch.Tensor = - (weight * log_probs)
         mean_loss = loss.mean()
         
-        if batch_step % 100 == 0:
+        if batch_step % self.log_interval == 0:
             self.writer.add_scalar('Loss/actor_loss', mean_loss.item(), batch_step)
 
         self.actor_optimizer.zero_grad()
         mean_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=self.grad_norm_clip)
         self.actor_optimizer.step()
         return mean_loss, entropy_mean, adv_mean
 
@@ -201,7 +205,7 @@ class IQLAgent:
                 v_val = self.v_net(state_batch)
                 advantage = target_q - v_val
                 weight = torch.exp(self.beta * advantage)
-                weight = torch.clamp(weight, max=100.0)
+                weight = torch.clamp(weight, max=self.adv_weight_clip)
 
                 log_probs, _, _ = self.actor.evaluate(state_batch, action_batch)
                 loss = - (weight * log_probs).mean()
@@ -332,7 +336,7 @@ class IQLAgent:
                 self._save_checkpoint(
                     epoch, save_best_loss=True, model_name='v_net', loss=val_v_loss)
 
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % self.checkpoint_interval == 0:
                 self._save_checkpoint(
                     epoch, save_best_loss=False, model_name='v_net', loss=val_v_loss)
                 self._save_checkpoint(
@@ -408,7 +412,7 @@ class IQLAgent:
                 self._save_checkpoint(
                     epoch, save_best_loss=True, model_name='actor', loss=best_actor_q_mean) # Loss field stores Q-mean
 
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % self.checkpoint_interval == 0:
                 self._save_checkpoint(
                     epoch, save_best_loss=False, model_name='actor', loss=val_actor_loss)
         

@@ -54,6 +54,11 @@ def run_single_experiment(experiment_name, config_overrides):
     gamma = config['iql']['gamma']
     alpha = config['iql']['alpha']
     beta = config['iql']['beta']
+    
+    # New Configs
+    reward_scale = config['training'].get('reward_scale', 0.1)
+    validation_split = config['training'].get('validation_split', 0.8)
+    seed = config['training'].get('seed', 42)
 
     # 2. Dataset Setup (Load once, use for all if possible, but loading here ensures isolation)
     NUM_EPISODES = 1000
@@ -74,16 +79,16 @@ def run_single_experiment(experiment_name, config_overrides):
     next_states = dataset['next_states']
 
     # Apply reward scaling
-    rewards = rewards / 10.0
+    rewards = rewards * reward_scale
 
     full_dataset = TensorDataset(states, actions, rewards, next_states)
 
     # 3. Data Split (Fixed Seed for consistency across experiments)
     total_size = len(full_dataset)
-    train_size = int(0.8 * total_size)
+    train_size = int(validation_split * total_size)
     val_size = total_size - train_size
 
-    generator = torch.Generator().manual_seed(42)
+    generator = torch.Generator().manual_seed(seed)
     train_dataset, val_dataset = random_split(
         full_dataset, [train_size, val_size], generator=generator)
 
@@ -116,7 +121,7 @@ def run_single_experiment(experiment_name, config_overrides):
     # 5. Setup Paths
     base_path = os.getcwd()
     base_logging_path = os.path.join(base_path, "logs")
-    base_checkpoint_path = "/media/data/hoangdv/checkpoints"
+    base_checkpoint_path = os.path.join(base_path, "checkpoints")
 
     agent._create_new_experimental(
         experimental_name=experiment_name,

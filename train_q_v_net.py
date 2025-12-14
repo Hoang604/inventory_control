@@ -32,6 +32,11 @@ def main():
     gamma = config['iql']['gamma']
     alpha = config['iql']['alpha']
     beta = config['iql']['beta']
+    
+    # New Configs
+    reward_scale = config['training'].get('reward_scale', 0.1)
+    validation_split = config['training'].get('validation_split', 0.8)
+    seed = config['training'].get('seed', 42)
 
     # --- Dataset Generation and Loading ---
     NUM_EPISODES = 1000
@@ -53,18 +58,18 @@ def main():
     next_states = dataset['next_states']
 
     # Apply reward scaling
-    rewards = rewards / 10.0
+    rewards = rewards * reward_scale
 
     # Create Full TensorDataset
     full_dataset = TensorDataset(states, actions, rewards, next_states)
 
     # --- Data Split (Fixed Seed for Reproducibility) ---
     total_size = len(full_dataset)
-    train_size = int(0.8 * total_size)
+    train_size = int(validation_split * total_size)
     val_size = total_size - train_size
     
     # IMPORTANT: Use specific seed so Actor script can reproduce the same split
-    generator = torch.Generator().manual_seed(42)
+    generator = torch.Generator().manual_seed(seed)
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size], generator=generator)
 
     logger.info(f"Data split: {train_size} Training samples, {val_size} Validation samples")

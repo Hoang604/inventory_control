@@ -16,3 +16,10 @@ iql:
 training:
   batch_size: 512
   epochs: 100
+  reward_scale: 0.1
+  validation_split: 0.8
+  seed: 42
+  grad_norm_clip: 1.0
+  adv_weight_clip: 100.0
+  log_interval: 100
+  checkpoint_interval: 5

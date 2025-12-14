@@ -6,7 +6,7 @@ import json
 import scipy.stats as stats
 from utils.config_loader import load_config
 from src.base.inv_management_env import InvManagementEnv
-from src.models.iql.actor import Actor
+from src.models.iql.actor import SActor
 from src.base.policies import MinMaxPolicy
 
 # --- ARTIFACT CONFIGURATION ---
@@ -98,7 +98,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # checkpoint_path = "checkpoints/inv_management_iql_minmax_run_06122025_220601/actor/best_loss.pth"
-    checkpoint_path = "checkpoints/inv_management_iql_minmax_run_06122025_220600/actor/best_loss.pth"
+    checkpoint_path = "checkpoints/EXP_03_TAU_EXTREME_07122025_024648/actor/best_loss.pth"
 
     if os.path.exists(checkpoint_path):
         print(f"Loading trained agent from: {checkpoint_path}")
@@ -115,7 +115,7 @@ def main():
             config = load_config()
 
         # Initialize Actor with the CORRECT config
-        actor = Actor(config).to(device)
+        actor = SActor(config).to(device)
         actor.load_state_dict(checkpoint['model_state_dict'])
         actor.eval()
 

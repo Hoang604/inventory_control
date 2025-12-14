@@ -65,75 +65,97 @@ def get_baseline_performance(env, num_episodes=30):
 
 def main():
     # Configuration
-    config = load_config()
-    experiment_dir = "checkpoints/inv_management_iql_minmax_run_06122025_232855"
-    actor_dir = os.path.join(experiment_dir, "actor")
-
-    if not os.path.exists(actor_dir):
-        print(f"Error: Directory not found: {actor_dir}")
+    default_config = load_config()
+    
+    # Auto-discover experiments starting with EXP_
+    base_dir = "checkpoints"
+    experiment_dirs = sorted(glob.glob(os.path.join(base_dir, "EXP_*")))
+    
+    if not experiment_dirs:
+        print("No experiments found matching 'checkpoints/EXP_*'")
         return
+
+    print(f"Found {len(experiment_dirs)} experiments to evaluate.")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = InvManagementEnv(render_mode=None)
 
-    # 1. Calculate Baseline
-    print("Calculating Baseline (MinMax) Performance...")
+    # 1. Calculate Baseline (Once for all)
+    print("\nCalculating Baseline (MinMax) Performance...")
     baseline_mean, baseline_std = get_baseline_performance(
-        env, num_episodes=50)
+        env, num_episodes=250)
     print(f"Baseline: {baseline_mean:.2f} +/- {baseline_std:.2f}\n")
 
-    # 2. Find and Sort Checkpoints
-    checkpoint_files = glob.glob(os.path.join(
-        actor_dir, "checkpoint_epoch_*.pth"))
+    all_results = []
+    
+    print(f"{ 'Experiment':<40} | { 'Epoch':<5} | { 'Mean Reward':<12} | { 'Std Dev':<10} | { 'Diff':<10}")
+    print("-" * 95)
 
-    # Extract epoch numbers
-    checkpoints = []
-    for f in checkpoint_files:
-        match = re.search(r"checkpoint_epoch_(\d+).pth", f)
-        if match:
-            epoch = int(match.group(1))
-            checkpoints.append((epoch, f))
+    for experiment_path in experiment_dirs:
+        experiment_name = os.path.basename(experiment_path)
+        actor_dir = os.path.join(experiment_path, "actor")
 
-    # Sort by epoch
-    checkpoints.sort(key=lambda x: x[0])
+        if not os.path.exists(actor_dir):
+            continue
 
-    # Filter: Epoch 4, 9, 14... (Every 5 epochs starting from 4)
-    # Adjust filter logic as needed. The user asked for 4, 9...
-    selected_checkpoints = [cp for cp in checkpoints if (cp[0] + 1) % 5 == 0]
+        # Find checkpoints
+        checkpoint_files = glob.glob(os.path.join(actor_dir, "checkpoint_epoch_*.pth"))
+        
+        # Extract and sort
+        checkpoints = []
+        for f in checkpoint_files:
+            match = re.search(r"checkpoint_epoch_(\d+).pth", f)
+            if match:
+                epoch = int(match.group(1))
+                checkpoints.append((epoch, f))
+        
+        checkpoints.sort(key=lambda x: x[0])
+        
+        # Filter: Every 5 epochs (or just 4, 9, 14...)
+        selected_checkpoints = [cp for cp in checkpoints if (cp[0] + 1) % 5 == 0]
 
-    results = []
+        for epoch, file_path in selected_checkpoints:
+            try:
+                # Load Checkpoint
+                checkpoint_data = torch.load(file_path, map_location=device)
+                
+                # Config Strategy
+                if 'config' in checkpoint_data:
+                    current_config = checkpoint_data['config']
+                else:
+                    current_config = default_config
 
-    print(f"{ 'Epoch':<10} | { 'Mean Reward':<15} | { 'Std Dev':<15} | { 'Vs Baseline':<15}")
-    print("-----------------------------------------------------------------")
+                # Init Agent
+                actor = Actor(current_config).to(device)
+                actor.load_state_dict(checkpoint_data['model_state_dict'])
+                actor.eval()
 
-    for epoch, file_path in selected_checkpoints:
-        # Load Agent
-        actor = Actor(config).to(device)
-        checkpoint_data = torch.load(file_path, map_location=device)
-        actor.load_state_dict(checkpoint_data['model_state_dict'])
-        actor.eval()
+                # Evaluate
+                mean_reward, std_reward = run_evaluation_loop(env, actor, num_episodes=30) # Reduced episodes for speed
+                diff = mean_reward - baseline_mean
 
-        # Evaluate
-        mean_reward, std_reward = run_evaluation_loop(
-            env, actor, num_episodes=50)
+                print(
+                    f"{experiment_name:<40} | {epoch:<5} | {mean_reward:<12.2f} | {std_reward:<10.2f} | {diff:<+10.2f}")
 
-        # Compare
-        diff = mean_reward - baseline_mean
+                all_results.append({
+                    "experiment": experiment_name,
+                    "epoch": epoch,
+                    "mean_reward": mean_reward,
+                    "std_dev": std_reward,
+                    "diff": diff,
+                    "baseline_mean": baseline_mean
+                })
+            except Exception as e:
+                print(f"Error evaluating {experiment_name} Epoch {epoch}: {e}")
 
-        print(
-            f"{epoch:<10} | {mean_reward:<15.2f} | {std_reward:<15.2f} | {diff:<+15.2f}")
-
-        results.append({
-            "epoch": epoch,
-            "mean_reward": mean_reward,
-            "std_dev": std_reward,
-            "diff": diff
-        })
-
-    # Save to CSV for easier analysis
-    df = pd.DataFrame(results)
-    df.to_csv("checkpoint_analysis.csv", index=False)
-    print(f"\nAnalysis saved to checkpoint_analysis.csv")
+    # Save to CSV
+    if all_results:
+        df = pd.DataFrame(all_results)
+        output_file = "all_experiments_analysis.csv"
+        df.to_csv(output_file, index=False)
+        print(f"\nAnalysis saved to {output_file}")
+    else:
+        print("\nNo results collected.")
 
 
 if __name__ == "__main__":

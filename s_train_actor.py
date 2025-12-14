@@ -8,8 +8,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from utils.config_loader import load_config
 from logger_config import setup_logging
-from src.models.iql.actor import Actor, SActor
-from src.models.iql.critics import QNet, VNet
+from src.models.iql.actor import SActor
+from src.models.iql.critics import SQNet, SVNet
 from src.models.iql.agent import IQLAgent
 import logging
 
@@ -138,9 +138,9 @@ def main():
             "Config not found in Q/V checkpoints. Falling back to initially loaded config for Q/V network initialization.")
 
     # Initialize Q and V nets with the correct configuration from their checkpoints
-    q_net = QNet(q_v_net_config).to(device)
-    target_q_net = QNet(q_v_net_config).to(device)
-    v_net = VNet(q_v_net_config).to(device)
+    q_net = SQNet(q_v_net_config).to(device)
+    target_q_net = SQNet(q_v_net_config).to(device)
+    v_net = SVNet(q_v_net_config).to(device)
 
     # Load state dicts into the correctly initialized networks
     q_net.load_state_dict(q_checkpoint_data['model_state_dict'])

@@ -26,6 +26,15 @@ def main():
     # Load configuration
     config = load_config()
 
+    # Extract hyperparameters
+    batch_size = config['training']['batch_size']
+    epochs = config['training']['epochs']
+    learning_rate = float(config['iql']['learning_rate'])
+    tau = config['iql']['tau']
+    gamma = config['iql']['gamma']
+    alpha = config['iql']['alpha']
+    beta = config['iql']['beta']
+
     # --- Dataset Generation and Loading ---
     NUM_EPISODES = 1000
     STEPS_PER_EPISODE = 30
@@ -67,7 +76,6 @@ def main():
         f"Data split: {train_size} Training samples, {val_size} Validation samples")
 
     # Create DataLoaders
-    batch_size = 512
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     val_dataloader = DataLoader(
@@ -80,17 +88,19 @@ def main():
     actor_net = Actor(config).to(device)
     q_net = QNet(config).to(device)
     target_q_net = QNet(config).to(device)
+    # Initialize target with same weights
     target_q_net.load_state_dict(q_net.state_dict())
     v_net = VNet(config).to(device)
 
-    learning_rate = 1e-5
+    # Initialize optimizers
     v_optimizer = Adam(v_net.parameters(), lr=learning_rate)
     q_optimizer = Adam(q_net.parameters(), lr=learning_rate)
     actor_optimizer = Adam(actor_net.parameters(), lr=learning_rate)
 
+    # Instantiate IQLAgent
     agent = IQLAgent(
         device=device, actor=actor_net, q_net=q_net, target_net=target_q_net, v_net=v_net,
-        tau=0.7, gamma=0.99, alpha=0.005, beta=1.0,
+        tau=tau, gamma=gamma, alpha=alpha, beta=beta,
         v_optimizer=v_optimizer, q_optimizer=q_optimizer, actor_optimizer=actor_optimizer,
         config=config
     )
@@ -108,7 +118,6 @@ def main():
     )
 
     # --- Phase 1: Train Q and V Networks ---
-    epochs = 100
     logger.info(f"Starting Q/V training for {epochs} epochs...")
     q_v_metrics = agent.train_q_and_v(
         dataloader=train_dataloader,

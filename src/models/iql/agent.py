@@ -1,6 +1,7 @@
 import torch
 import tqdm
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 import logging
 import datetime
@@ -35,6 +36,16 @@ class IQLAgent:
         self.config = config
         self.q_v_history = []
         self.actor_history = []
+        
+        # --- Scheduler Initialization ---
+        # Using T_max = epochs (will be set/updated in train loop if needed, but for now assuming T_max=100 from config)
+        # Defaulting to config['training']['epochs'] if available, else 100.
+        epochs = config['training'].get('epochs', 100)
+        eta_min = float(config['iql'].get('eta_min', 1e-6))
+        
+        self.v_scheduler = CosineAnnealingLR(self.v_optimizer, T_max=epochs, eta_min=eta_min)
+        self.q_scheduler = CosineAnnealingLR(self.q_optimizer, T_max=epochs, eta_min=eta_min)
+        self.actor_scheduler = CosineAnnealingLR(self.actor_optimizer, T_max=epochs, eta_min=eta_min)
 
     def _perform_one_batch_step_for_v_net(self, state_batch: torch.Tensor, target_batch: torch.Tensor, batch_step):
         v_output: torch.Tensor = self.v_net(state_batch)
@@ -269,6 +280,14 @@ class IQLAgent:
                 global_step += 1
                 batch_count += 1
 
+            # Step Scheduler
+            self.q_scheduler.step()
+            self.v_scheduler.step()
+            
+            # Log current LR
+            current_lr = self.q_scheduler.get_last_lr()[0]
+            self.writer.add_scalar('LearningRate/q_v_net', current_lr, epoch)
+
             v_mean_loss = total_v_loss / batch_count
             q_mean_loss = total_q_loss / batch_count
             avg_q_val = total_q_val / batch_count
@@ -288,7 +307,8 @@ class IQLAgent:
             pbar.set_postfix(V_Loss=f"{v_mean_loss:.4f}",
                              Q_Loss=f"{q_mean_loss:.4f}",
                              Val_Q_Loss=f"{val_q_loss:.4f}",
-                             Stability_Score=f"{stability_score:.2f}")
+                             Stability_Score=f"{stability_score:.2f}",
+                             LR=f"{current_lr:.2e}")
 
             epoch_metrics.append({
                 'epoch': epoch,
@@ -300,7 +320,8 @@ class IQLAgent:
                 'avg_v_val': avg_v_val,
                 'val_q_mean': val_q_mean,
                 'val_q_std': val_q_std,
-                'stability_score': stability_score
+                'stability_score': stability_score,
+                'lr': current_lr
             })
 
             # SAVE CHECKPOINT LOGIC: Reverted to Minimizing Validation Q-Loss
@@ -351,6 +372,11 @@ class IQLAgent:
                 total_advantage += adv
                 global_step += 1
                 batch_count += 1
+            
+            # Step Scheduler
+            self.actor_scheduler.step()
+            current_lr = self.actor_scheduler.get_last_lr()[0]
+            self.writer.add_scalar('LearningRate/actor', current_lr, epoch)
 
             actor_mean_loss = total_actor_loss / batch_count
             avg_entropy = total_entropy / batch_count
@@ -363,7 +389,8 @@ class IQLAgent:
             
             pbar.set_postfix(Actor_Loss=f"{actor_mean_loss:.4f}", 
                              Val_Loss=f"{val_actor_loss:.4f}",
-                             Val_Q_Mean=f"{val_actor_q_mean:.4f}")
+                             Val_Q_Mean=f"{val_actor_q_mean:.4f}",
+                             LR=f"{current_lr:.2e}")
 
             epoch_metrics.append({
                 'epoch': epoch,
@@ -371,7 +398,8 @@ class IQLAgent:
                 'val_actor_loss': val_actor_loss,
                 'val_actor_q_mean': val_actor_q_mean,
                 'avg_entropy': avg_entropy,
-                'avg_advantage': avg_advantage
+                'avg_advantage': avg_advantage,
+                'lr': current_lr
             })
 
             # SAVE CHECKPOINT LOGIC: Based on MAXIMIZING ESTIMATED POLICY VALUE (EPV)

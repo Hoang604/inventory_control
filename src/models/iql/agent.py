@@ -37,13 +37,11 @@ class IQLAgent:
         self.q_v_history = []
         self.actor_history = []
         
-        # --- Configurable Parameters ---
         self.log_interval = config['training'].get('log_interval', 100)
         self.checkpoint_interval = config['training'].get('checkpoint_interval', 5)
         self.grad_norm_clip = config['training'].get('grad_norm_clip', 1.0)
         self.adv_weight_clip = config['training'].get('adv_weight_clip', 100.0)
         
-        # --- Scheduler Initialization ---
         epochs = config['training'].get('epochs', 100)
         eta_min = float(config['iql'].get('eta_min', 1e-6))
         
@@ -147,7 +145,7 @@ class IQLAgent:
         total_v_loss = 0
         total_q_loss = 0
         
-        all_q_outputs = [] # To accumulate Q-values for mean/std calculation
+        all_q_outputs = []
         batch_count = 0
         
         with torch.no_grad():
@@ -157,21 +155,19 @@ class IQLAgent:
                 reward_batch = reward_batch.to(self.device)
                 next_state_batch = next_state_batch.to(self.device)
 
-                # Calculate V Loss
                 target_q = self.target_net(state_batch, action_batch)
                 v_output = self.v_net(state_batch)
                 v_error = target_q - v_output
                 v_loss = torch.where(v_error > 0, self.tau, 1 - self.tau) * v_error ** 2
                 total_v_loss += v_loss.mean().item()
 
-                # Calculate Q Loss
                 estimated_v_next = self.v_net(next_state_batch)
                 target_q_val = reward_batch + self.gamma * estimated_v_next
                 q_output = self.q_net(state_batch, action_batch)
                 q_loss = ((target_q_val - q_output)**2).mean()
                 total_q_loss += q_loss.item()
                 
-                all_q_outputs.append(q_output.cpu()) # Store on CPU to avoid GPU memory issues if validation set is large
+                all_q_outputs.append(q_output.cpu())
                 
                 batch_count += 1
         
@@ -189,10 +185,10 @@ class IQLAgent:
         self.actor.eval()
         self.v_net.eval()
         self.target_net.eval()
-        self.q_net.eval() # Use Q-net for evaluation
+        self.q_net.eval()
         
         total_loss = 0
-        total_q_val = 0 # Accumulator for EPV (Estimated Policy Value)
+        total_q_val = 0
         batch_count = 0
         
         with torch.no_grad():
@@ -200,7 +196,6 @@ class IQLAgent:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
                 
-                # 1. Calculate Actor Loss (Behavior Cloning / Advantage Weighted)
                 target_q = self.target_net(state_batch, action_batch)
                 v_val = self.v_net(state_batch)
                 advantage = target_q - v_val
@@ -211,11 +206,7 @@ class IQLAgent:
                 loss = - (weight * log_probs).mean()
                 total_loss += loss.item()
                 
-                # 2. Calculate EPV: Q-value of the Actor's predicted action
-                # We ask the Actor: "What would you do here?"
-                # Note: .evaluate returns action_mean, which is the deterministic action
                 _, _, pred_action = self.actor.evaluate(state_batch, action_batch) 
-                # We ask the Critic: "How good is that action?"
                 pred_q_val = self.q_net(state_batch, pred_action)
                 total_q_val += pred_q_val.mean().item()
 
@@ -235,7 +226,7 @@ class IQLAgent:
         if resume_q_path:
             _, _ = self._load_model(model_name='q_net', file_path=resume_q_path)
         
-        q_best_loss = torch.inf # Reverted to minimizing Loss
+        q_best_loss = torch.inf
         
         start_epoch = 0 
 
@@ -252,7 +243,6 @@ class IQLAgent:
             total_v_val = 0
             batch_count = 0
 
-            # Training Loop
             for state_batch, action_batch, reward_batch, next_state_batch in dataloader:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
@@ -284,11 +274,9 @@ class IQLAgent:
                 global_step += 1
                 batch_count += 1
 
-            # Step Scheduler
             self.q_scheduler.step()
             self.v_scheduler.step()
             
-            # Log current LR
             current_lr = self.q_scheduler.get_last_lr()[0]
             self.writer.add_scalar('LearningRate/q_v_net', current_lr, epoch)
 
@@ -297,12 +285,10 @@ class IQLAgent:
             avg_q_val = total_q_val / batch_count
             avg_v_val = total_v_val / batch_count
             
-            # Validation Loop - Get mean and std for Diagnostics (but use Loss for saving)
             val_v_loss, val_q_loss, val_q_mean, val_q_std = self._validate_q_v(val_dataloader)
             self.writer.add_scalar('Loss/val_v_loss', val_v_loss, global_step)
             self.writer.add_scalar('Loss/val_q_loss', val_q_loss, global_step)
             
-            # We still calculate stability score for logs, but don't use it for stopping
             stability_score = val_q_mean - 1.0 * val_q_std
             self.writer.add_scalar('Value/val_q_mean', val_q_mean, global_step)
             self.writer.add_scalar('Value/val_q_std', val_q_std, global_step)
@@ -328,7 +314,6 @@ class IQLAgent:
                 'lr': current_lr
             })
 
-            # SAVE CHECKPOINT LOGIC: Reverted to Minimizing Validation Q-Loss
             if val_q_loss < q_best_loss:
                 q_best_loss = val_q_loss
                 self._save_checkpoint(
@@ -349,7 +334,7 @@ class IQLAgent:
         if resume_training_path:
            _, _ = self._load_model(model_name='actor', file_path=resume_training_path)
         
-        best_actor_q_mean = -torch.inf # Initialize for maximization
+        best_actor_q_mean = -torch.inf
         start_epoch = 0
 
         global_step = 0
@@ -363,7 +348,6 @@ class IQLAgent:
             total_advantage = 0
             batch_count = 0
 
-            # Training Loop
             for state_batch, action_batch, _, _ in dataloader:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
@@ -377,7 +361,6 @@ class IQLAgent:
                 global_step += 1
                 batch_count += 1
             
-            # Step Scheduler
             self.actor_scheduler.step()
             current_lr = self.actor_scheduler.get_last_lr()[0]
             self.writer.add_scalar('LearningRate/actor', current_lr, epoch)
@@ -386,7 +369,6 @@ class IQLAgent:
             avg_entropy = total_entropy / batch_count
             avg_advantage = total_advantage / batch_count
             
-            # Validation Loop
             val_actor_loss, val_actor_q_mean = self._validate_actor(val_dataloader)
             self.writer.add_scalar('Loss/val_actor_loss', val_actor_loss, global_step)
             self.writer.add_scalar('Value/val_actor_q_mean', val_actor_q_mean, global_step)
@@ -406,11 +388,10 @@ class IQLAgent:
                 'lr': current_lr
             })
 
-            # SAVE CHECKPOINT LOGIC: Based on MAXIMIZING ESTIMATED POLICY VALUE (EPV)
             if val_actor_q_mean > best_actor_q_mean:
                 best_actor_q_mean = val_actor_q_mean
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='actor', loss=best_actor_q_mean) # Loss field stores Q-mean
+                    epoch, save_best_loss=True, model_name='actor', loss=best_actor_q_mean)
 
             if (epoch + 1) % self.checkpoint_interval == 0:
                 self._save_checkpoint(
@@ -442,7 +423,6 @@ class IQLAgent:
         q_v_metrics = self.train_q_and_v(
             dataloader, val_dataloader, epochs, resume_v_path=resume_v_path, resume_q_path=resume_q_path)
 
-        # --- RELOAD BEST CHECKPOINTS FOR ACTOR TRAINING ---
         self.logger.info("Reloading 'best_loss.pth' for Q and V networks before training Actor...")
         
         best_q_path = self.checkpoint_path / "q_net" / "best_loss.pth"
@@ -450,7 +430,6 @@ class IQLAgent:
 
         if best_q_path.exists():
             self._load_model('q_net', str(best_q_path))
-            # Sync target net with the best Q-net to ensure consistency
             self.target_net.load_state_dict(self.q_net.state_dict())
             self.logger.info("Target Network synced with Best Q-Network.")
         else:
@@ -460,7 +439,6 @@ class IQLAgent:
             self._load_model('v_net', str(best_v_path))
         else:
             self.logger.warning(f"Best V-Net checkpoint not found at {best_v_path}. Using final epoch weights.")
-        # --------------------------------------------------
 
         actor_metrics = self.train_actor(dataloader, val_dataloader, epochs,
                          resume_training_path=resume_actor_path)
@@ -532,8 +510,6 @@ class IQLAgent:
         }
 
         torch.save(checkpoint, checkpoint_file_path)
-        # Removed logging to suppress checkpoint save messages
-        # self.logger.info(f"Saved {model_name} model to {checkpoint_file_path}")
 
     def _load_model(self, model_name: str, file_path: str):
         """
@@ -550,7 +526,6 @@ class IQLAgent:
             self.logger.error(f"Checkpoint file not found: {file_path}")
             return 0
 
-        # Select the correct model and optimizer to load into
         if model_name == 'actor':
             model_to_load = self.actor
             optimizer_to_load = self.actor_optimizer

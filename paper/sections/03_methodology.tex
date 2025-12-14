@@ -1,8 +1,8 @@
 \subsection{Problem Formulation}
 
-Inefficient inventory management imposes a staggering cost on the global economy, with the retail industry alone losing an estimated \$1.75 trillion annually due to issues like overstocking and stockouts. At the heart of this problem is the challenge of multi-echelon inventory control: coordinating ordering decisions across the sequential stages of a supply chain. This coordination is notoriously undermined by the ``bullwhip effect,'' where minor demand fluctuations at the consumer end become progressively amplified into severe oscillations in orders and inventory further upstream. The bullwhip effect leads directly to excessive holding costs, lost sales, and severe operational inefficiencies. Consequently, developing robust inventory control policies that can mitigate this effect remains a central challenge in operations research.
+Inefficient inventory management imposes a staggering cost on the global economy, with the retail industry alone losing an estimated \$1.75 trillion annually due to the twin failures of overstocking and stockouts. At the core of this inefficiency is the challenge of multi-echelon inventory control: **orchestrating** ordering decisions across the sequential stages of a supply chain. This coordination is notoriously undermined by the ``bullwhip effect,'' where minor demand fluctuations at the consumer end become progressively amplified into severe oscillations upstream. The bullwhip effect drives excessive holding costs and operational instability. Consequently, developing robust control policies that can **dampen** this volatility remains a central challenge in operations research.
 
-We consider a serial multi-echelon supply chain consisting of $K=4$ stages, indexed by $k \in \{0, \dots, K-1\}$, representing the Retailer, Distributor, Manufacturer, and Supplier, respectively. The flow of goods moves downstream from stage $K-1$ to stage $0$, while information (orders) flows upstream. The system operates in discrete time steps $t \in \{0, \dots, T\}$. The dynamics are characterized by stochastic end-customer demand, fixed transportation lead times between stages, and capacity constraints.
+We consider a serial multi-echelon supply chain consisting of $K=4$ stages, indexed by $k \in \{0, \dots, K-1\}$, representing the Retailer, Distributor, Manufacturer, and Supplier, respectively. The flow of goods moves downstream from stage $K-1$ to stage $0$, while information (orders) flows upstream. The system operates in discrete time steps $t \in \{0, \dots, T\}$. The dynamics are characterized by stochastic end-customer demand, fixed transportation lead times between stages, and finite capacity constraints.
 
 \subsection{Formal Problem Definition}
 
@@ -42,32 +42,33 @@ In a realistic setting, no single agent has access to the full state of the supp
     \item \textbf{Observation Space ($\Omega$):} The agent operates under partial observability. The local observation $o_t \in \Omega$ consists of the agent's local on-hand inventory and a history of its recent orders (representing the pipeline inventory). Formally, $o_t = [I_{t}, a_{t-1}, a_{t-2}, \dots, a_{t-L_{max}}]$, where $L_{max}$ captures the relevant lead-time history.
 
     \item \textbf{Reward Function ($\mathcal{R}$):} The local reward $r_t$ reflects the operational efficiency of the specific stage. It penalizes holding inventory and failing to meet downstream demand (lost sales):
-    \[
+    \begin{equation*}
     r_t(s_t, a_t) = -(c_h \cdot I_t + c_p \cdot LS_t)
-    \]
+    \end{equation*} 
     This reward structure incentivizes the agent to maintain lean inventory levels while maximizing service level ($LS_t \to 0$).
 
     \item \textbf{Transition Dynamics ($\mathcal{T}$):} The system evolves according to the stochastic demand $d_t \sim P_D(\cdot)$ and the deterministic inventory conservation laws described in the centralized formulation.
 \end{itemize}
 
 \textbf{Objective:} The goal of the offline reinforcement learning agent is to learn a policy $\pi(a_t|o_t)$ from a fixed dataset of historical transitions $\mathcal{D} = \{ (o_i, a_i, r_i, o'_{i}) \}_{i=1}^N$ that maximizes the expected discounted return:
-\[
+\begin{equation*}
     J(\pi) = \max_{\pi} \mathbb{E}_{{\tau \sim P^\pi}} \left[ \sum_{t=0}^{T} \gamma^t r_{t} \right]
-\]
-The fundamental challenge is to optimize this objective without online interaction, relying solely on the potentially suboptimal behaviors recorded in $\mathcal{D}$.
+\end{equation*} 
+The fundamental challenge is to optimize this objective without online interaction, relying solely on the behaviors recorded in $\mathcal{D}$.
 
-\subsection{The Dataset: Synthesizing Chaos}
-To rigorously test the ``Paradox of Static Mastery,'' we need a dataset that is \textit{not} optimal. A dataset of perfect expert demonstrations would make the task trivial (Behavior Cloning). Instead, we generate a dataset of \textbf{Chaotic Competence}.
+\subsection{The Dataset: A Mixture of Experts}
+To investigate whether offline RL can transcend the performance of heuristic baselines, we construct a dataset $\mathcal{D}$ that reflects high-quality but imperfect expert knowledge. Rather than using random noise, we employ a \textbf{Mixture of Experts} strategy derived from domain-specific Base-Stock policies.
 
-We employ a \textbf{Randomized Min-Max Strategy}:
+A Base-Stock policy orders up to a target level $z$. We first perform an \textbf{exhaustive grid search} over the parameter space $z \in \{40, 60, \dots, 300\}$ across the three active echelons, evaluating $14^3 = 2,744$ unique configurations to identify the top 10 performing experts. We then generate the dataset by sampling trajectories from these top-10 experts.
 \begin{enumerate}
-    \item For every episode, we sample random parameters $S \sim U(10, 200)$ and $s \sim U(0, S)$.
-    \item This creates a dataset covering a massive spectrum of behaviors: from ``Lean'' (low $S$, high risk) to ``Hoarder'' (high $S$, high cost), and everything in between.
-    \item We further inject Gaussian noise $\mathcal{N}(0, 5)$ into the actions.
+    \item \textbf{Diversity:} By mixing 10 distinct high-performing policies, the dataset covers a diverse range of successful strategies (e.g., some favoring higher safety stock, others favoring lean operations).
+    \item \textbf{Quality:} Unlike random data, every trajectory in $\mathcal{D}$ is generated by a competent policy.
 \end{enumerate}
-This dataset represents a realistic historical log of a company that has oscillated between different strategies over time, mostly performing suboptimally. The challenge for the agent is to find the signal in this noise.
+This setup tests the agent's ability to \textbf{synthesize} a superior policy from a consensus of experts, rather than merely filtering out incompetence.
 
-\subsection{IQL: The Mathematical Filter}
-We train an IQL agent on this dataset. The core innovation of IQL relevant to this domain is its use of expectile regression for the Value function:
-\[ L_V(\psi) = \mathbb{E}_{(s,a) \sim \mathcal{D}} [L_2^\tau(Q(s,a) - V(s))] \]
-With an expectile $\tau = 0.7$, the Value network does not learn the \textit{average} return of the dataset (which would be mediocre). This specific $\tau$ value acts as a risk-averse filter, enabling the observed variance reduction by focusing on higher-reward trajectories. Instead, it approximates the $70^{th}$ percentile of returns. It learns to value states based on the \textit{best} trajectories in the history, effectively ignoring the failures caused by poor $(s, S)$ parameters. The Actor network then extracts this high-value behavior via advantage-weighted regression, allowing it to outperform the average behavior of the data generator.
+\subsection{IQL: The High-Pass Filter}
+We train an IQL agent on this expert mixture. The core innovation of IQL relevant to this domain is its use of expectile regression for the Value function:
+\begin{equation*}
+ L_V(\psi) = \mathbb{E}_{(s,a) \sim \mathcal{D}} [L_2^\tau(Q(s,a) - V(s))]
+\end{equation*} 
+We set the expectile $\tau = 0.8$. In this high-performance regime, $\tau=0.8$ acts as a \textbf{High-Pass Filter}. It directs the Value network to approximate the $80^{th}$ percentile of returns available in the dataset. Effectively, the agent learns to identify the specific states where one expert outperformed the others, and selectively \textbf{imitates} that specific superior behavior. We set the intermediate layer dimension to 1024 to ensure sufficient capacity for modeling the complex interactions between expert strategies.

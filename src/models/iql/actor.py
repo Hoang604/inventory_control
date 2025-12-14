@@ -12,8 +12,6 @@ class Actor(nn.Module):
         self.log_std_min = config['actor']['log_std_min']
         self.log_std_max = config['actor']['log_std_max']
 
-        # Architecture Upgrade: Wider + Deeper + LayerNorm + Mish
-        # Matches the capacity of the Q and V networks for symmetric performance.
         self.mlp = nn.Sequential(
             nn.Linear(self.input_dim, self.intermediate_dim),
             nn.LayerNorm(self.intermediate_dim),

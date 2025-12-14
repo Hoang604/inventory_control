@@ -11,22 +11,18 @@ from logger_config import setup_logging
 from src.models.iql.actor import Actor
 from src.models.iql.critics import QNet, VNet
 from src.models.iql.agent import IQLAgent
-from generate_dataset import generate_dataset
+from generate_dataset import generate_base_stock_dataset
 import logging
 
-# Setup logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Enable anomaly detection
 torch.autograd.set_detect_anomaly(True)
 
 
 def main():
-    # Load configuration
     config = load_config()
 
-    # Extract hyperparameters
     batch_size = config['training']['batch_size']
     epochs = config['training']['epochs']
     learning_rate = float(config['iql']['learning_rate'])
@@ -34,23 +30,20 @@ def main():
     gamma = config['iql']['gamma']
     alpha = config['iql']['alpha']
     beta = config['iql']['beta']
-    
-    # New Configs
+
     reward_scale = config['training'].get('reward_scale', 0.1)
     validation_split = config['training'].get('validation_split', 0.8)
     seed = config['training'].get('seed', 42)
 
-    # --- Dataset Generation and Loading ---
     NUM_EPISODES = 1000
     STEPS_PER_EPISODE = 30
     DATA_DIR = "data"
-    DATASET_FILENAME = "inv_management_dataset.pt"
+    DATASET_FILENAME = "inv_management_base_stock.pt"
     DATASET_PATH = os.path.join(DATA_DIR, DATASET_FILENAME)
 
     if not os.path.exists(DATASET_PATH):
         logger.info(
             f"Dataset not found at {DATASET_PATH}. Generating new dataset.")
-        generate_dataset(NUM_EPISODES, STEPS_PER_EPISODE, DATASET_PATH)
     else:
         logger.info(
             f"Dataset found at {DATASET_PATH}. Loading existing dataset.")
@@ -61,18 +54,14 @@ def main():
     rewards = dataset['rewards']
     next_states = dataset['next_states']
 
-    # Apply reward scaling to combat Q-value overestimation
     rewards = rewards * reward_scale
 
-    # Create Full TensorDataset
     full_dataset = TensorDataset(states, actions, rewards, next_states)
 
-    # --- Data Split (Fixed Seed for Reproducibility) ---
     total_size = len(full_dataset)
     train_size = int(validation_split * total_size)
     val_size = total_size - train_size
 
-    # IMPORTANT: Use specific seed for reproducibility
     generator = torch.Generator().manual_seed(seed)
     train_dataset, val_dataset = random_split(
         full_dataset, [train_size, val_size], generator=generator)
@@ -80,29 +69,24 @@ def main():
     logger.info(
         f"Data split: {train_size} Training samples, {val_size} Validation samples")
 
-    # Create DataLoaders
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     val_dataloader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
-    # --- IQL Agent Initialization ---
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
     actor_net = Actor(config).to(device)
     q_net = QNet(config).to(device)
     target_q_net = QNet(config).to(device)
-    # Initialize target with same weights
     target_q_net.load_state_dict(q_net.state_dict())
     v_net = VNet(config).to(device)
 
-    # Initialize optimizers
     v_optimizer = Adam(v_net.parameters(), lr=learning_rate)
     q_optimizer = Adam(q_net.parameters(), lr=learning_rate)
     actor_optimizer = Adam(actor_net.parameters(), lr=learning_rate)
 
-    # Instantiate IQLAgent
     agent = IQLAgent(
         device=device, actor=actor_net, q_net=q_net, target_net=target_q_net, v_net=v_net,
         tau=tau, gamma=gamma, alpha=alpha, beta=beta,
@@ -110,7 +94,6 @@ def main():
         config=config
     )
 
-    # --- Create New Experiment ---
     experimental_name = "inv_management_iql_minmax_run"
     base_path = os.getcwd()
     base_logging_path = os.path.join(base_path, "logs")
@@ -122,7 +105,6 @@ def main():
         base_checkpoint_path=base_checkpoint_path
     )
 
-    # --- Phase 1: Train Q and V Networks ---
     logger.info(f"Starting Q/V training for {epochs} epochs...")
     q_v_metrics = agent.train_q_and_v(
         dataloader=train_dataloader,
@@ -136,7 +118,6 @@ def main():
     logger.info(
         "Q/V training completed. Best Critics selected by Stability Score.")
 
-    # --- Phase 2: Reload Best Q/V Networks and Train Actor ---
     logger.info(
         "Reloading 'best_loss.pth' for Q and V networks before training Actor...")
 

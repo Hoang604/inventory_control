@@ -13,18 +13,14 @@ from src.models.iql.agent import IQLAgent
 from generate_dataset import generate_dataset
 import logging
 
-# Setup logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Enable anomaly detection
 torch.autograd.set_detect_anomaly(True)
 
 def main():
-    # Load configuration
     config = load_config()
 
-    # Extract hyperparameters
     batch_size = config['training']['batch_size']
     epochs = config['training']['epochs']
     learning_rate = float(config['iql']['learning_rate'])
@@ -33,12 +29,10 @@ def main():
     alpha = config['iql']['alpha']
     beta = config['iql']['beta']
     
-    # New Configs
     reward_scale = config['training'].get('reward_scale', 0.1)
     validation_split = config['training'].get('validation_split', 0.8)
     seed = config['training'].get('seed', 42)
 
-    # --- Dataset Generation and Loading ---
     NUM_EPISODES = 1000
     STEPS_PER_EPISODE = 30
     DATA_DIR = "data"
@@ -57,28 +51,22 @@ def main():
     rewards = dataset['rewards']
     next_states = dataset['next_states']
 
-    # Apply reward scaling
     rewards = rewards * reward_scale
 
-    # Create Full TensorDataset
     full_dataset = TensorDataset(states, actions, rewards, next_states)
 
-    # --- Data Split (Fixed Seed for Reproducibility) ---
     total_size = len(full_dataset)
     train_size = int(validation_split * total_size)
     val_size = total_size - train_size
     
-    # IMPORTANT: Use specific seed so Actor script can reproduce the same split
     generator = torch.Generator().manual_seed(seed)
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size], generator=generator)
 
     logger.info(f"Data split: {train_size} Training samples, {val_size} Validation samples")
 
-    # Create DataLoaders
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
-    # --- IQL Agent Initialization ---
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
@@ -99,20 +87,17 @@ def main():
         config=config
     )
 
-    # --- Create Experiment ---
     experimental_name = "inv_management_iql_minmax_run"
     base_path = os.getcwd()
     base_logging_path = os.path.join(base_path, "logs")
     base_checkpoint_path = os.path.join(base_path, "checkpoints")
     
-    # We explicitly create the experiment here
     agent._create_new_experimental(
         experimental_name=experimental_name,
         base_logging_path=base_logging_path,
         base_checkpoint_path=base_checkpoint_path
     )
     
-    # --- Train Q and V ---
     logger.info(f"Starting Q/V training for {epochs} epochs...")
     q_v_metrics = agent.train_q_and_v(
         dataloader=train_dataloader,
@@ -122,7 +107,6 @@ def main():
         resume_q_path=None
     )
     
-    # Export Diagnostics
     agent.export_diagnostics(q_v_metrics, [], file_path="training_diagnostics_qv.csv")
     logger.info("Q/V training completed.")
     

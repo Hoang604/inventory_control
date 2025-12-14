@@ -1,7 +1,7 @@
 env:
   state_dim: 33
   action_dim: 3
-intermediate_dim: 512
+intermediate_dim: 1024
 actor:
   log_std_max: 2
   log_std_min: -20
@@ -9,7 +9,7 @@ actor:
 iql:
   learning_rate: 3e-6
   eta_min: 1e-7
-  tau: 0.7
+  tau: 0.8
   gamma: 0.99
   alpha: 0.005
   beta: 1.0

@@ -7,18 +7,20 @@ All experiments were conducted on the \texttt{InvManagement-v1} environment. The
 \end{itemize}
 
 \subsection{Training Details}
-We generated a dataset consisting of 2,000 episodes (60,000 transitions) using the randomized Min-Max strategy described in Section \ref{sec:methodology}.
-The IQL agent was trained for 100 epochs with a batch size of 256. The hyperparameters were set to:
+We generated a dataset consisting of 2,000 episodes (60,000 transitions) using the \textbf{Mixture of Experts} strategy described in Section III-C. This dataset samples from the top 10 Base-Stock configurations found via exhaustive grid search.
+
+The IQL agent was trained for 100 epochs with a batch size of 512. The hyperparameters were set to:
 \begin{itemize}
     \item Discount factor $\gamma = 0.99$
-    \item Expectile $\tau = 0.7$
+    \item Expectile $\tau = 0.8$
     \item Temperature $\beta = 1.0$
-    \item Learning Rate = $1 \times 10^{-5}$
+    \item Learning Rate = $3 \times 10^{-6}$
+    \item Network Size: 1024 hidden units
 \end{itemize}
 
 \subsection{Baselines}
-We compare the trained IQL agent against the stochastic policy used to generate the data:
+We compare the trained IQL agent against the best performing expert from the dataset generation process:
 \begin{itemize}
-    \item \textbf{Randomized Min-Max}: A policy where $(s, S)$ parameters are sampled randomly for every episode. This represents the average performance of the heuristic strategies contained in the dataset.
+    \item \textbf{Optimized Base-Stock Policy}: The specific configuration ($z^* = [80, 180, 40]$) that achieved the highest mean reward during the grid search phase. This serves as a ``Gold Standard'' heuristic baseline.
 \end{itemize}
-Evaluation is performed over 50 unseen test episodes to ensure statistical significance.
+Evaluation is performed over 100 unseen test episodes to ensure statistical significance.

@@ -17,21 +17,17 @@ def analyze_diagnostics(file_path):
         print(f"Error reading CSV: {e}")
         return
 
-    # 1. Raw Data Preview
     print("\n[Raw Data Preview (First 5 rows)]")
     print(df.head().to_string())
     print("\n[Raw Data Preview (Last 5 rows)]")
     print(df.tail().to_string())
 
-    # 2. Statistical Summary
     print("\n[Statistical Summary]")
     stats = df.describe().transpose()
     print(stats[['mean', 'std', 'min', '50%', 'max']].to_string())
 
-    # 3. Trend Analysis (Stability Check)
     print("\n[Trend Analysis]")
     
-    # Check if Loss increased in the second half
     half_epoch = len(df) // 2
     first_half = df.iloc[:half_epoch]
     second_half = df.iloc[half_epoch:]
@@ -56,7 +52,6 @@ def analyze_diagnostics(file_path):
             else:
                 print(f"  -> Stable: Metric remained relatively constant.")
     
-    # 4. Best Epoch Identification
     if 'val_q_loss' in df.columns:
         best_epoch_row = df.loc[df['val_q_loss'].idxmin()]
         print(f"\n[Best Epoch by Min Validation Q-Loss]")
@@ -66,7 +61,6 @@ def analyze_diagnostics(file_path):
             print(f"Val Q-Std:  {best_epoch_row['val_q_std']:.4f}")
 
 if __name__ == "__main__":
-    # Analyzing the BAD run
     TARGET_FILE = "logs/inv_management_iql_minmax_run_06122025_234052/training_diagnostics_qv.csv"
     
     analyze_diagnostics(TARGET_FILE)

@@ -1,20 +1,20 @@
 {
     "baseline": {
-        "name": "Randomized Min-Max Policy",
-        "mean_reward": 49.72320667012747,
-        "std_dev": 126.96723463116689,
+        "name": "Base Stock Policy (z=[80, 180, 40])",
+        "mean_reward": 334.4792041205185,
+        "std_dev": 13.51497984636007,
         "n_episodes": 100
     },
     "method": {
         "name": "IQL Agent",
-        "mean_reward": -257.26447658870677,
-        "std_dev": 6.1708220716325215,
+        "mean_reward": 401.9011090452212,
+        "std_dev": 12.933590523015786,
         "n_episodes": 100
     },
     "comparison": {
-        "absolute_improvement": -306.98768325883424,
-        "percent_improvement": -617.393172760246,
-        "p_value": 3.286110164330617e-43,
+        "absolute_improvement": 67.42190492470269,
+        "percent_improvement": 20.157278567432087,
+        "p_value": 1.888880023162755e-88,
         "statistically_significant": true
     }
 }

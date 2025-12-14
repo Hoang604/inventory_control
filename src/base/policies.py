@@ -41,17 +41,9 @@ class BaseStockPolicy:
         if z is None:
             raise ValueError("Base stock levels 'z' must be provided.")
 
-        # Access internal environment state
-        # Note: This breaks the black-box assumption of RL but is standard for Heuristics.
-        # We use the current period's data.
         period = self.env.period
 
-        # Current Inventory (I) and Pipeline (T)
-        # Shapes in InvManagementEnv: (periods+1, num_stages-1)
-        # We need the current step's values.
-        # If the env just reset, period might be 0.
 
-        # Safety check for end of episode
         if period >= len(self.env.I):
             current_I = self.env.I[-1]
             current_T = self.env.T[-1]
@@ -59,24 +51,13 @@ class BaseStockPolicy:
             current_I = self.env.I[period]
             current_T = self.env.T[period]
 
-        # Calculate Echelon Inventory Position (IP)
-        # IP_local = I + T
-        # IP_echelon = Cumulative Sum of IP_local (from Retailer up to Manufacturer)
 
-        # Note on indexing:
-        # Index 0 = Retailer
-        # Index 1 = Distributor
-        # Index 2 = Manufacturer
-        # cumulative sum should be 0, 0+1, 0+1+2...
 
         ip_local = current_I + current_T
         ip_echelon = np.cumsum(ip_local)
 
-        # Calculate required reorder quantity
-        # R = Target - Current_IP
         reorder = z - ip_echelon
 
-        # Actions cannot be negative
         action = np.maximum(reorder, 0)
 
         return action.astype(np.float32)
@@ -117,22 +98,15 @@ class MinMaxPolicy:
         if params is None:
             params = self.params
         if params is None:
-            # Default fallback if no params provided: s=0, S=100 (naive)
-            # Assuming 3 stages based on typical env
             params = np.array([[0, 100], [0, 100], [0, 100]])
 
-        # Ensure input is numpy array
         params = np.array(params)
 
-        # Extract s (Reorder Point) and S (Order-Up-To)
-        # params shape expected: (num_stages, 2) -> col 0 is s, col 1 is S
         s_levels = params[:, 0]
         S_levels = params[:, 1]
 
-        # --- 1. Access Environment State (White-box) ---
         period = self.env.period
 
-        # Handle edge case where env might be done
         if period >= len(self.env.I):
             current_I = self.env.I[-1]
             current_T = self.env.T[-1]
@@ -140,25 +114,17 @@ class MinMaxPolicy:
             current_I = self.env.I[period]
             current_T = self.env.T[period]
 
-        # --- 2. Calculate Echelon Inventory Position (IP) ---
-        # Echelon IP = Cumulative Sum of (Local Inventory + Local Pipeline)
-        # This represents total stock in the system for that stage and all downstream
         ip_local = current_I + current_T
         ip_echelon = np.cumsum(ip_local)
 
-        # --- 3. Apply (s, S) Logic ---
         action = np.zeros_like(ip_echelon)
 
-        # Check condition: Is IP < s?
         reorder_mask = ip_echelon < s_levels
 
-        # If yes, Order = S - IP
-        # If no, Order = 0 (already initialized to 0)
         if np.any(reorder_mask):
             action[reorder_mask] = S_levels[reorder_mask] - \
                 ip_echelon[reorder_mask]
 
-        # Safety clip to ensure non-negative orders
         action = np.maximum(action, 0)
 
         return action.astype(np.float32)

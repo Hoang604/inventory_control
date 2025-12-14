@@ -11,3 +11,10 @@ data
 *.csv
 *.md
 !README.md
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.bib

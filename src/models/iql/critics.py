@@ -10,7 +10,6 @@ class QNet(nn.Module):
         self.output_dim = 1
         self.intermediate_dim = config["intermediate_dim"]
 
-        # Architecture Upgrade: Wider + Deeper + LayerNorm + Mish
         self.mlp = nn.Sequential(
             nn.Linear(self.input_dim, self.intermediate_dim),
             nn.LayerNorm(self.intermediate_dim),
@@ -38,7 +37,6 @@ class VNet(nn.Module):
         self.output_dim = 1
         self.intermediate_dim = config["intermediate_dim"]
 
-        # Architecture Upgrade: Wider + Deeper + LayerNorm + Mish
         self.mlp = nn.Sequential(
             nn.Linear(self.input_dim, self.intermediate_dim),
             nn.LayerNorm(self.intermediate_dim),

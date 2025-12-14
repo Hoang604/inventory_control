@@ -9,7 +9,6 @@ from src.base.inv_management_env import InvManagementEnv
 from src.models.iql.actor import SActor
 from src.base.policies import MinMaxPolicy
 
-# --- ARTIFACT CONFIGURATION ---
 ARTIFACTS_DIR = "paper/artifacts"
 RESULTS_FILE = os.path.join(ARTIFACTS_DIR, "results.json")
 HYPERPARAMS_FILE = os.path.join(ARTIFACTS_DIR, "hyperparameters.yaml")
@@ -42,10 +41,8 @@ def run_episode(env, agent=None, render=False, baseline_policy_callable=None):
     total_reward = 0
     step = 0
 
-    # Determine device for agent
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Silent execution for artifacts, unless render is True
     if render:
         policy_name = ""
         if agent is None:
@@ -87,25 +84,16 @@ def run_episode(env, agent=None, render=False, baseline_policy_callable=None):
 
 
 def main():
-    # 1. Setup Environment
-    # Create environment with NO SEED to ensure randomness across runs,
-    # BUT set a seed for this specific evaluation script to ensure consistency
-    # within the "Reproducibility" context if needed.
-    # For now, we leave it random as requested by the user to show "mining from noise".
     env = InvManagementEnv(render_mode=None)
 
-    # 2. Load Trained Agent (Actor)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # checkpoint_path = "checkpoints/inv_management_iql_minmax_run_06122025_220601/actor/best_loss.pth"
     checkpoint_path = "checkpoints/EXP_03_TAU_EXTREME_07122025_024648/actor/best_loss.pth"
 
     if os.path.exists(checkpoint_path):
         print(f"Loading trained agent from: {checkpoint_path}")
         checkpoint = torch.load(checkpoint_path, map_location=device)
 
-        # Load Config from Checkpoint (Priority)
-        # This ensures the actor structure matches what was trained
         if 'config' in checkpoint:
             print("Configuration loaded successfully from checkpoint.")
             config = checkpoint['config']
@@ -114,12 +102,10 @@ def main():
                 "Warning: Config not found in checkpoint. Falling back to default config.")
             config = load_config()
 
-        # Initialize Actor with the CORRECT config
         actor = SActor(config).to(device)
         actor.load_state_dict(checkpoint['model_state_dict'])
         actor.eval()
 
-        # Save Hyperparameters (now we have the correct config that generated the results)
         save_hyperparameters(config)
 
     else:
@@ -128,7 +114,6 @@ def main():
 
     NUM_TEST_EPISODES = 100
 
-    # 3. Run Experiments
     print(
         f"\nRunning Min-Max Policy Experiment ({NUM_TEST_EPISODES} episodes)...")
     min_max_rewards = []
@@ -149,22 +134,18 @@ def main():
     for _ in range(NUM_TEST_EPISODES):
         agent_rewards.append(run_episode(env, agent=actor, render=False))
 
-    # 4. Calculate Metrics
     min_max_mean = np.mean(min_max_rewards)
     min_max_std = np.std(min_max_rewards)
     agent_mean = np.mean(agent_rewards)
     agent_std = np.std(agent_rewards)
 
-    # T-test for statistical significance
     t_stat, p_value = stats.ttest_ind(
         agent_rewards, min_max_rewards, equal_var=False)
 
-    # Improvement
     diff = agent_mean - min_max_mean
     pct_improvement = (diff / abs(min_max_mean)) * \
         100 if min_max_mean != 0 else 0
 
-    # 5. Export Artifacts
     results_data = {
         "baseline": {
             "name": "Randomized Min-Max Policy",
@@ -187,7 +168,6 @@ def main():
     }
     save_results(results_data)
 
-    # 6. Display Results
     print("\n" + "="*30)
     print("FINAL RESULTS (Averaged)")
     print("="*30)

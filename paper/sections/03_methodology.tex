@@ -1,6 +1,6 @@
 \subsection{Problem Formulation}
 
-Inefficient inventory management imposes a staggering cost on the global economy, with the retail industry alone losing an estimated \$1.75 trillion annually due to the twin failures of overstocking and stockouts. At the core of this inefficiency is the challenge of multi-echelon inventory control: **orchestrating** ordering decisions across the sequential stages of a supply chain. This coordination is notoriously undermined by the ``bullwhip effect,'' where minor demand fluctuations at the consumer end become progressively amplified into severe oscillations upstream. The bullwhip effect drives excessive holding costs and operational instability. Consequently, developing robust control policies that can **dampen** this volatility remains a central challenge in operations research.
+Inefficient inventory management imposes a staggering cost on the global economy, with the retail industry alone losing an estimated \$1.75 trillion annually due to the twin failures of overstocking and stockouts. At the core of this inefficiency is the challenge of multi-echelon inventory control: \textbf{orchestrating} ordering decisions across the sequential stages of a supply chain. This coordination is notoriously undermined by the ``bullwhip effect,'' where minor demand fluctuations at the consumer end become progressively amplified into severe oscillations upstream. The bullwhip effect drives excessive holding costs and operational instability. Consequently, developing robust control policies that can \textbf{dampen} this volatility remains a central challenge in operations research.
 
 We consider a serial multi-echelon supply chain consisting of $K=4$ stages, indexed by $k \in \{0, \dots, K-1\}$, representing the Retailer, Distributor, Manufacturer, and Supplier, respectively. The flow of goods moves downstream from stage $K-1$ to stage $0$, while information (orders) flows upstream. The system operates in discrete time steps $t \in \{0, \dots, T\}$. The dynamics are characterized by stochastic end-customer demand, fixed transportation lead times between stages, and finite capacity constraints.
 
@@ -21,13 +21,13 @@ The system dynamics are governed by the following variables:
 
 The optimization problem is formally stated as:
 \begin{flalign}
-    && \min_{ \{ a_{k,t} \} } \quad & \mathbb{E} \left[ \sum_{t=0}^{T} \sum_{k=0}^{K-1} (c_h \cdot I_{k,t} + c_p \cdot LS_{k,t}) \right] & \\
-    && \text{s.t.} \quad & I_{k,t} = \left(I_{k,t-1} + Q_{k,t}^{\text{in}} - O_{k,t}^{\text{down}}\right)^+ & \forall k, t \\
-    && & LS_{k,t} = \left(O_{k,t}^{\text{down}} - (I_{k,t-1} + Q_{k,t}^{\text{in}})\right)^+ & \forall k, t \\
-    && & Q_{k,t}^{\text{in}} = a_{k, t-L_{k+1}} & \forall k < K-1, t \\
-    && & O_{k,t}^{\text{down}} = a_{k-1, t} & \forall k > 0, t \\
-    && & O_{0,t}^{\text{down}} = d_t & \forall t \\
-    && & 0 \le a_{k,t} \le C_k & \forall k, t
+     &  & \min_{ \{ a_{k,t} \} } \quad & \mathbb{E} \left[ \sum_{t=0}^{T} \sum_{k=0}^{K-1} (c_h \cdot I_{k,t} + c_p \cdot LS_{k,t}) \right] &                    \\
+     &  & \text{s.t.} \quad            & I_{k,t} = \left(I_{k,t-1} + Q_{k,t}^{\text{in}} - O_{k,t}^{\text{down}}\right)^+                   & \forall k, t       \\
+     &  &                              & LS_{k,t} = \left(O_{k,t}^{\text{down}} - (I_{k,t-1} + Q_{k,t}^{\text{in}})\right)^+                & \forall k, t       \\
+     &  &                              & Q_{k,t}^{\text{in}} = a_{k, t-L_{k+1}}                                                             & \forall k < K-1, t \\
+     &  &                              & O_{k,t}^{\text{down}} = a_{k-1, t}                                                                 & \forall k > 0, t   \\
+     &  &                              & O_{0,t}^{\text{down}} = d_t                                                                        & \forall t          \\
+     &  &                              & 0 \le a_{k,t} \le C_k                                                                              & \forall k, t
 \end{flalign}
 where $c_h$ is the per-unit holding cost, $c_p$ is the per-unit penalty cost for lost sales, $d_t$ is the stochastic end-customer demand, $C_k$ is the supply capacity at stage $k$, and $(x)^+ = \max(0, x)$.
 
@@ -42,10 +42,10 @@ In a realistic setting, no single agent has access to the full state of the supp
     \item \textbf{Observation Space ($\Omega$):} The agent operates under partial observability. The local observation $o_t \in \Omega$ consists of the agent's local on-hand inventory and a history of its recent orders (representing the pipeline inventory). Formally, $o_t = [I_{t}, a_{t-1}, a_{t-2}, \dots, a_{t-L_{max}}]$, where $L_{max}$ captures the relevant lead-time history.
 
     \item \textbf{Reward Function ($\mathcal{R}$):} The local reward $r_t$ reflects the operational efficiency of the specific stage. It penalizes holding inventory and failing to meet downstream demand (lost sales):
-    \begin{equation*}
-    r_t(s_t, a_t) = -(c_h \cdot I_t + c_p \cdot LS_t)
-    \end{equation*} 
-    This reward structure incentivizes the agent to maintain lean inventory levels while maximizing service level ($LS_t \to 0$).
+          \begin{equation*}
+              r_t(s_t, a_t) = -(c_h \cdot I_t + c_p \cdot LS_t)
+          \end{equation*}
+          This reward structure incentivizes the agent to maintain lean inventory levels while maximizing service level ($LS_t \to 0$).
 
     \item \textbf{Transition Dynamics ($\mathcal{T}$):} The system evolves according to the stochastic demand $d_t \sim P_D(\cdot)$ and the deterministic inventory conservation laws described in the centralized formulation.
 \end{itemize}
@@ -53,7 +53,7 @@ In a realistic setting, no single agent has access to the full state of the supp
 \textbf{Objective:} The goal of the offline reinforcement learning agent is to learn a policy $\pi(a_t|o_t)$ from a fixed dataset of historical transitions $\mathcal{D} = \{ (o_i, a_i, r_i, o'_{i}) \}_{i=1}^N$ that maximizes the expected discounted return:
 \begin{equation*}
     J(\pi) = \max_{\pi} \mathbb{E}_{{\tau \sim P^\pi}} \left[ \sum_{t=0}^{T} \gamma^t r_{t} \right]
-\end{equation*} 
+\end{equation*}
 The fundamental challenge is to optimize this objective without online interaction, relying solely on the behaviors recorded in $\mathcal{D}$.
 
 \subsection{The Dataset: A Mixture of Experts}
@@ -69,6 +69,6 @@ This setup tests the agent's ability to \textbf{synthesize} a superior policy fr
 \subsection{IQL: The High-Pass Filter}
 We train an IQL agent on this expert mixture. The core innovation of IQL relevant to this domain is its use of expectile regression for the Value function:
 \begin{equation*}
- L_V(\psi) = \mathbb{E}_{(s,a) \sim \mathcal{D}} [L_2^\tau(Q(s,a) - V(s))]
-\end{equation*} 
+    L_V(\psi) = \mathbb{E}_{(s,a) \sim \mathcal{D}} [L_2^\tau(Q(s,a) - V(s))]
+\end{equation*}
 We set the expectile $\tau = 0.8$. In this high-performance regime, $\tau=0.8$ acts as a \textbf{High-Pass Filter}. It directs the Value network to approximate the $80^{th}$ percentile of returns available in the dataset. Effectively, the agent learns to identify the specific states where one expert outperformed the others, and selectively \textbf{imitates} that specific superior behavior. We set the intermediate layer dimension to 1024 to ensure sufficient capacity for modeling the complex interactions between expert strategies.

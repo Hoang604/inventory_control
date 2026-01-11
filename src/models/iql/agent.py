@@ -12,6 +12,8 @@ import pandas as pd
 from .critics import VNet, QNet
 from .actor import Actor
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
 
 class IQLAgent:
     """
@@ -22,7 +24,7 @@ class IQLAgent:
         self.device = device
         self.actor = actor
         self.q_net = q_net
-        self.target_net = target_net
+        self.target_q_net = target_net
         self.v_net = v_net
         self.tau = tau
         self.gamma = gamma
@@ -53,6 +55,18 @@ class IQLAgent:
             self.actor_optimizer, T_max=epochs, eta_min=eta_min)
 
     def _perform_one_batch_step_for_v_net(self, state_batch: torch.Tensor, target_batch: torch.Tensor, batch_step):
+        """Calculates and applies the asymmetric L2 loss for the V-network.
+
+        Args:
+            state_batch (torch.Tensor): The current states
+            target_batch (torch.Tensor): Current Q-values from the target network used
+                to compute the prediction error.
+            batch_step (int): Current global step used for conditional logging and
+                metric tracking.
+
+        Returns:
+            tuple: A tuple containing (mean_loss, v_mean_value).
+        """
         v_output: torch.Tensor = self.v_net(state_batch)
         v_mean = v_output.mean().item()
 
@@ -73,7 +87,22 @@ class IQLAgent:
         self.v_optimizer.step()
         return mean_loss, v_mean
 
-    def _perform_one_batch_step_for_q_net(self, reward_batch: torch.Tensor, state_batch: torch.Tensor, action_batch: torch.Tensor, estimated_v_for_next_state: torch.Tensor, batch_step):
+    def _perform_one_batch_step_for_q_net(self, reward_batch: torch.Tensor, state_batch: torch.Tensor, action_batch: torch.Tensor, estimated_v_for_next_state: torch.Tensor, done_batch: torch.Tensor, batch_step):
+        """Calculates and applies the Bellman MSE loss for the Q-network.
+
+        Args:
+            reward_batch (torch.Tensor): Batch of rewards after perform the action_batch in
+                the state_batch.
+            state_batch (torch.Tensor): Current states from the dataset used as input to `q_net`.
+            action_batch (torch.Tensor): Actions performed at the current states in the dataset     used as input to `q_net`.
+            estimated_v_for_next_state (torch.Tensor): V(s') values from the V-network, which s' is the next state after performing action_batch in state_batch. This is used for the discounted future value in the Bellman target.
+            done_batch (torch.Tensor): Terminal flags indicating if the transition ends the
+                episode. Used to mask out bootstrapping from terminal states.
+            batch_step (int): Current global step used for logging and tracking.
+
+        Returns:
+            tuple: A tuple containing (mean_loss, q_mean_value).
+        """
         q_output: torch.Tensor = self.q_net(state_batch, action_batch)
         q_mean = q_output.mean().item()
 
@@ -82,10 +111,12 @@ class IQLAgent:
             q_max = q_output.max().item()
             # Only print every 500 batches to reduce clutter
             if batch_step % 500 == 0:
-                tqdm.write(f"  Batch {batch_step}: Q-Values - Mean: {q_mean:.4f}, Min: {q_min:.4f}, Max: {q_max:.4f}")
+                tqdm.write(
+                    f"  Batch {batch_step}: Q-Values - Mean: {q_mean:.4f}, Min: {q_min:.4f}, Max: {q_max:.4f}")
             self.writer.add_scalar('Value/avg_q_value', q_mean, batch_step)
 
-        target_q = reward_batch + self.gamma * estimated_v_for_next_state
+        # Apply terminal mask: V(s') = 0 for terminal states
+        target_q = reward_batch + self.gamma * (1 - done_batch) * estimated_v_for_next_state
         loss: torch.Tensor = (target_q - q_output)**2
         mean_loss = loss.mean()
 
@@ -100,14 +131,32 @@ class IQLAgent:
         return mean_loss, q_mean
 
     def _soft_update_target_net(self):
+        """Performs Polyak (soft) update of the target Q-network.
+
+        Iterates through the parameters of `q_net` and `target_net` to update the
+        target weights using the formula:
+        target_param = (1 - alpha) * target_param + alpha * q_param
+        """
         with torch.no_grad():
-            for target_param, q_param in zip(self.target_net.parameters(), self.q_net.parameters()):
+            for target_param, q_param in zip(self.target_q_net.parameters(), self.q_net.parameters()):
                 target_param.data.copy_(
                     target_param * (1 - self.alpha) + q_param * self.alpha)
 
     def _perform_one_batch_step_for_actor_net(self, state_batch, action_batch, batch_step):
+        """Calculates and applies the advantage-weighted policy loss for the Actor.
+
+        Args:
+            state_batch (torch.Tensor): States from the dataset used to compute values
+                from `v_net` and `target_net`.
+            action_batch (torch.Tensor): Actions performed in the dataset used to
+                compute values from `target_net` and log-probabilities.
+            batch_step (int): Current global step used for logging and tracking.
+
+        Returns:
+            tuple: A tuple containing (mean_loss, entropy_mean, adv_mean).
+        """
         with torch.no_grad():
-            target_net_ouput: torch.Tensor = self.target_net(
+            target_net_ouput: torch.Tensor = self.target_q_net(
                 state_batch, action_batch)
             v_net_output: torch.Tensor = self.v_net(state_batch)
             advantage = target_net_ouput - v_net_output
@@ -148,7 +197,7 @@ class IQLAgent:
     def _validate_q_v(self, val_dataloader):
         self.v_net.eval()
         self.q_net.eval()
-        self.target_net.eval()
+        self.target_q_net.eval()
 
         total_v_loss = 0
         total_q_loss = 0
@@ -157,13 +206,14 @@ class IQLAgent:
         batch_count = 0
 
         with torch.no_grad():
-            for state_batch, action_batch, reward_batch, next_state_batch in val_dataloader:
+            for state_batch, action_batch, reward_batch, next_state_batch, done_batch in val_dataloader:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
                 reward_batch = reward_batch.to(self.device)
                 next_state_batch = next_state_batch.to(self.device)
+                done_batch = done_batch.to(self.device)
 
-                target_q = self.target_net(state_batch, action_batch)
+                target_q = self.target_q_net(state_batch, action_batch)
                 v_output = self.v_net(state_batch)
                 v_error = target_q - v_output
                 v_loss = torch.where(v_error > 0, self.tau,
@@ -171,7 +221,8 @@ class IQLAgent:
                 total_v_loss += v_loss.mean().item()
 
                 estimated_v_next = self.v_net(next_state_batch)
-                target_q_val = reward_batch + self.gamma * estimated_v_next
+                # Apply terminal mask: V(s') = 0 for terminal states
+                target_q_val = reward_batch + self.gamma * (1 - done_batch) * estimated_v_next
                 q_output = self.q_net(state_batch, action_batch)
                 q_loss = ((target_q_val - q_output)**2).mean()
                 total_q_loss += q_loss.item()
@@ -182,7 +233,7 @@ class IQLAgent:
 
         self.v_net.train()
         self.q_net.train()
-        self.target_net.train()
+        self.target_q_net.train()
 
         all_q_outputs_tensor = torch.cat(all_q_outputs)
         val_q_mean = all_q_outputs_tensor.mean().item()
@@ -193,7 +244,7 @@ class IQLAgent:
     def _validate_actor(self, val_dataloader):
         self.actor.eval()
         self.v_net.eval()
-        self.target_net.eval()
+        self.target_q_net.eval()
         self.q_net.eval()
 
         total_loss = 0
@@ -201,11 +252,11 @@ class IQLAgent:
         batch_count = 0
 
         with torch.no_grad():
-            for state_batch, action_batch, _, _ in val_dataloader:
+            for state_batch, action_batch, _, _, _ in val_dataloader:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
 
-                target_q = self.target_net(state_batch, action_batch)
+                target_q = self.target_q_net(state_batch, action_batch)
                 v_val = self.v_net(state_batch)
                 advantage = target_q - v_val
                 weight = torch.exp(self.beta * advantage)
@@ -225,7 +276,7 @@ class IQLAgent:
 
         self.actor.train()
         self.v_net.train()
-        self.target_net.train()
+        self.target_q_net.train()
         self.q_net.train()
 
         return total_loss / batch_count, total_q_val / batch_count
@@ -255,18 +306,20 @@ class IQLAgent:
             total_v_val = 0
             batch_count = 0
 
-            for state_batch, action_batch, reward_batch, next_state_batch in dataloader:
+            for state_batch, action_batch, reward_batch, next_state_batch, done_batch in dataloader:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
                 reward_batch = reward_batch.to(self.device)
                 next_state_batch = next_state_batch.to(self.device)
+                done_batch = done_batch.to(self.device)
 
                 if not logged_device:
-                    tqdm.write(f"Training batch tensors on device: {state_batch.device}")
+                    tqdm.write(
+                        f"Training batch tensors on device: {state_batch.device}")
                     logged_device = True
 
                 with torch.no_grad():
-                    target_batch = self.target_net(state_batch, action_batch)
+                    target_batch = self.target_q_net(state_batch, action_batch)
 
                 v_loss, v_val = self._perform_one_batch_step_for_v_net(
                     state_batch, target_batch, global_step)
@@ -274,11 +327,12 @@ class IQLAgent:
                 total_v_val += v_val
 
                 with torch.no_grad():
+                    # for the next state, what is the estimated expectile value?
                     estimated_v_for_next_state: torch.Tensor = self.v_net(
                         next_state_batch)
 
                 q_loss, q_val = self._perform_one_batch_step_for_q_net(
-                    reward_batch, state_batch, action_batch, estimated_v_for_next_state, global_step)
+                    reward_batch, state_batch, action_batch, estimated_v_for_next_state, done_batch, global_step)
                 total_q_loss += q_loss.item()
                 total_q_val += q_val
 
@@ -366,7 +420,7 @@ class IQLAgent:
             total_advantage = 0
             batch_count = 0
 
-            for state_batch, action_batch, _, _ in dataloader:
+            for state_batch, action_batch, _, _, _ in dataloader:
                 state_batch = state_batch.to(self.device)
                 action_batch = action_batch.to(self.device)
 
@@ -394,7 +448,7 @@ class IQLAgent:
             self.writer.add_scalar(
                 'Value/val_actor_q_mean', val_actor_q_mean, global_step)
 
-            # Clean epoch summary every 10 epochs  
+            # Clean epoch summary every 10 epochs
             if (epoch + 1) % 10 == 0 or epoch == epochs - 1:
                 tqdm.write(
                     f"Epoch {epoch+1:3d}/{epochs}: "
@@ -442,7 +496,12 @@ class IQLAgent:
         self.logger.info(
             f"Detailed diagnostics exported to {self.log_path / file_path}")
 
-    def train(self, dataloader: DataLoader, val_dataloader: DataLoader, epochs, resume_q_path, resume_v_path, resume_actor_path, experimental_name=None, base_logging_path="/home/hoang/python/inventory_control/logs", base_checkpoint_path="/home/hoang/python/inventory_control/checkpoints"):
+    def train(self, dataloader: DataLoader, val_dataloader: DataLoader, epochs, resume_q_path, resume_v_path, resume_actor_path, experimental_name=None, base_logging_path=None, base_checkpoint_path=None):
+        if base_logging_path is None:
+            base_logging_path = PROJECT_ROOT / "logs"
+        if base_checkpoint_path is None:
+            base_checkpoint_path = PROJECT_ROOT / "checkpoints"
+
         self._create_new_experimental(
             experimental_name, base_logging_path, base_checkpoint_path)
 
@@ -457,7 +516,7 @@ class IQLAgent:
 
         if best_q_path.exists():
             self._load_model('q_net', str(best_q_path))
-            self.target_net.load_state_dict(self.q_net.state_dict())
+            self.target_q_net.load_state_dict(self.q_net.state_dict())
             self.logger.info("Target Network synced with Best Q-Network.")
         else:
             self.logger.warning(
@@ -483,6 +542,11 @@ class IQLAgent:
             base_logging_path: The base path for logging.
             base_checkpoint_path: The base path for saving checkpoints.
         """
+        if base_logging_path is None:
+            base_logging_path = PROJECT_ROOT / "logs"
+        if base_checkpoint_path is None:
+            base_checkpoint_path = PROJECT_ROOT / "checkpoints"
+
         timestamp = datetime.datetime.now().strftime(format='%d%m%Y_%H%M%S')
         if not experimental_name:
             experimental_name = f"{timestamp}_experimental"

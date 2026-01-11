@@ -1,20 +1,20 @@
 {
     "baseline": {
         "name": "Base Stock Policy (z=[80, 180, 40])",
-        "mean_reward": 336.82777774222734,
-        "std_dev": 10.960767702446107,
+        "mean_reward": 335.7234862882656,
+        "std_dev": 12.543017176651441,
         "n_episodes": 100
     },
     "method": {
         "name": "IQL Agent",
-        "mean_reward": 404.7758280773436,
-        "std_dev": 12.876973857847226,
+        "mean_reward": 335.38606874628636,
+        "std_dev": 27.023810478541723,
         "n_episodes": 100
     },
     "comparison": {
-        "absolute_improvement": 67.94805033511625,
-        "percent_improvement": 20.172935495574407,
-        "p_value": 2.423080605899879e-95,
-        "statistically_significant": true
+        "absolute_improvement": -0.3374175419792209,
+        "percent_improvement": -0.10050459850446708,
+        "p_value": 0.910440510197685,
+        "statistically_significant": false
     }
 }

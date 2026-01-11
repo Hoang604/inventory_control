@@ -15,6 +15,7 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 from torch.optim import Adam
 import torch
 import os
+from pathlib import Path
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -48,9 +49,10 @@ def train_qv_networks(dataset_path=None, experiment_name=None):
     validation_split = config['training'].get('validation_split', 0.8)
     seed = config['training'].get('seed', 42)
 
+    project_root = Path(__file__).resolve().parents[2]
     # Dataset configuration
     if dataset_path is None:
-        dataset_path = os.path.join("data", "inv_management_base_stock.pt")
+        dataset_path = str(project_root / "data" / "inv_management_base_stock.pt")
 
     if not os.path.exists(dataset_path):
         logger.info(
@@ -67,9 +69,10 @@ def train_qv_networks(dataset_path=None, experiment_name=None):
     actions = dataset['actions']
     rewards = dataset['rewards'] * reward_scale
     next_states = dataset['next_states']
+    dones = dataset['dones']
 
     # Data preparation
-    full_dataset = TensorDataset(states, actions, rewards, next_states)
+    full_dataset = TensorDataset(states, actions, rewards, next_states, dones)
     total_size = len(full_dataset)
     train_size = int(validation_split * total_size)
     val_size = total_size - train_size
@@ -114,11 +117,11 @@ def train_qv_networks(dataset_path=None, experiment_name=None):
     if experiment_name is None:
         experiment_name = "inv_management_iql_minmax_run"
 
-    base_path = os.getcwd()
+    base_path = project_root
     agent._create_new_experimental(
         experimental_name=experiment_name,
-        base_logging_path=os.path.join(base_path, "logs"),
-        base_checkpoint_path=os.path.join(base_path, "checkpoints")
+        base_logging_path=base_path / "logs",
+        base_checkpoint_path=base_path / "checkpoints"
     )
 
     # Training

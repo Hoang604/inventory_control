@@ -49,7 +49,7 @@ def main():
     gamma = 0.99
     steps_per_episode = 30
     reward_scale = 0.1
-    target_tau = 0.7
+    target_tau = 0.8
 
     print(f"Loading {dataset_path}...")
     try:

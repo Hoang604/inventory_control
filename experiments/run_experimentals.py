@@ -138,7 +138,7 @@ def run_single_experiment(experiment_name, config_overrides):
 
     if best_q_path.exists():
         agent._load_model('q_net', str(best_q_path))
-        agent.target_net.load_state_dict(
+        agent.target_q_net.load_state_dict(
             agent.q_net.state_dict())
     else:
         logger.warning(f"Best Q-Net not found. Using final weights.")

@@ -69,6 +69,7 @@ def main():
     actions = dataset['actions']
     rewards = dataset['rewards']
     next_states = dataset['next_states']
+    dones = dataset['dones']
 
     logger.info(f"Dataset size: {len(states)} transitions")
     logger.info(f"Mean reward: {rewards.mean().item():.4f}")
@@ -77,7 +78,7 @@ def main():
     rewards = rewards * reward_scale
 
     # Create train/val split
-    full_dataset = TensorDataset(states, actions, rewards, next_states)
+    full_dataset = TensorDataset(states, actions, rewards, next_states, dones)
 
     total_size = len(full_dataset)
     train_size = int(validation_split * total_size)
@@ -167,7 +168,7 @@ def main():
 
     if best_q_path.exists():
         agent._load_model('q_net', str(best_q_path))
-        agent.target_net.load_state_dict(agent.q_net.state_dict())
+        agent.target_q_net.load_state_dict(agent.q_net.state_dict())
         logger.info("Target Network synced with Best Q-Network.")
     else:
         logger.warning(

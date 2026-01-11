@@ -9,9 +9,9 @@ intermediate_dim: 1024
 iql:
   alpha: 0.005
   beta: 1.0
-  eta_min: 1e-7
+  eta_min: 1e-6
   gamma: 0.99
-  learning_rate: 3e-6
+  learning_rate: 3e-4
   tau: 0.8
 training:
   adv_weight_clip: 100.0

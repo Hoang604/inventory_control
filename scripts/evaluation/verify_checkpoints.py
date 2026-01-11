@@ -4,6 +4,7 @@ import os
 import glob
 import re
 import pandas as pd
+from pathlib import Path
 from utils.config_loader import load_config
 from src.base.inv_management_env import InvManagementEnv
 from src.models.iql.actor import Actor
@@ -62,7 +63,8 @@ def get_baseline_performance(env, num_episodes=30):
 def main():
     default_config = load_config()
 
-    base_dir = "checkpoints"
+    project_root = Path(__file__).resolve().parents[2]
+    base_dir = os.path.join(project_root, "checkpoints")
     experiment_dirs = sorted(glob.glob(os.path.join(base_dir, "*")))
 
     if not experiment_dirs:
@@ -74,7 +76,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = InvManagementEnv(render_mode=None)
 
-    print("\nCalculating Baseline (Best Expert: Base-Stock z=[80,180,40]) Performance...")
+    print(
+        "\nCalculating Baseline (Best Expert: Base-Stock z=[80,180,40]) Performance...")
     baseline_mean, baseline_std = get_baseline_performance(
         env, num_episodes=250)
     print(f"Baseline: {baseline_mean:.2f} +/- {baseline_std:.2f}\n")

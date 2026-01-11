@@ -88,8 +88,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    checkpoint_path = "/home/hoang/python/inventory_control/scripts/training/checkpoints/inv_management_iql_minmax_run_11012026_164155/actor/checkpoint_epoch_99.pth"
-
+    checkpoint_path = "/home/hoang/python/inventory_control/scripts/training/checkpoints/inv_management_iql_minmax_run_11012026_182856/actor/checkpoint_epoch_99.pth"
     if os.path.exists(checkpoint_path):
         print(f"Loading trained agent from: {checkpoint_path}")
         checkpoint = torch.load(checkpoint_path, map_location=device)

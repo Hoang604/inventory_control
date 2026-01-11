@@ -1,7 +1,9 @@
+import os
+from pathlib import Path
+
 import torch
 import numpy as np
 import os
-
 
 def compute_discounted_returns(rewards, gamma=0.99):
     """
@@ -14,7 +16,6 @@ def compute_discounted_returns(rewards, gamma=0.99):
         G = r + gamma * G
         returns.insert(0, G)
     return returns
-
 
 def calculate_expectile(values, tau=0.7, tolerance=1e-5, max_iter=1000):
     """
@@ -42,7 +43,6 @@ def calculate_expectile(values, tau=0.7, tolerance=1e-5, max_iter=1000):
 
     print("Warning: Expectile calculation did not strictly converge.")
     return e
-
 
 def main():
     dataset_path = "data/inv_management_base_stock.pt"
@@ -86,7 +86,6 @@ def main():
     scaled_discounted_totals = np.array(
         episode_discounted_totals) * reward_scale
 
-
     print(f"\n--- EPISODE-LEVEL STATISTICS (Average Score per Game) ---")
     print(f"Total Episodes Analyzed: {num_episodes}")
 
@@ -121,7 +120,6 @@ def main():
         print("Status: OPTIMISTIC (Target > Mean). This biases the agent toward high-return states.")
     else:
         print("Status: PESSIMISTIC (Target < Mean). This biases the agent toward safety.")
-
 
 if __name__ == "__main__":
     main()

@@ -6,8 +6,8 @@ import json
 import scipy.stats as stats
 from utils.config_loader import load_config
 from src.base.inv_management_env import InvManagementEnv
-from src.models.iql.actor import SActor
-from src.base.policies import MinMaxPolicy
+from src.models.iql.actor import Actor
+from src.base.policies import BaseStockPolicy
 
 ARTIFACTS_DIR = "paper/artifacts"
 RESULTS_FILE = os.path.join(ARTIFACTS_DIR, "results.json")
@@ -33,7 +33,7 @@ def save_hyperparameters(config):
 def run_episode(env, agent=None, render=False, baseline_policy_callable=None):
     """
     Runs a single episode.
-    If agent is None, uses random actions or a specified baseline policy.
+    If agent is None, uses a specified baseline policy callable.
     If agent is provided, uses the agent's policy.
     """
     obs, _ = env.reset()
@@ -46,7 +46,7 @@ def run_episode(env, agent=None, render=False, baseline_policy_callable=None):
     if render:
         policy_name = ""
         if agent is None:
-            policy_name = "Min-Max Policy" if baseline_policy_callable else "Random Policy"
+            policy_name = "Base Stock Policy" if baseline_policy_callable else "Random Policy"
         else:
             policy_name = "IQL Agent"
         print(f"\n--- Starting Episode ({policy_name}) ---")
@@ -88,7 +88,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    checkpoint_path = "checkpoints/EXP_03_TAU_EXTREME_07122025_024648/actor/best_loss.pth"
+    checkpoint_path = "/home/hoang/python/inventory_control/scripts/training/checkpoints/inv_management_iql_minmax_run_11012026_164155/actor/checkpoint_epoch_99.pth"
 
     if os.path.exists(checkpoint_path):
         print(f"Loading trained agent from: {checkpoint_path}")
@@ -102,7 +102,7 @@ def main():
                 "Warning: Config not found in checkpoint. Falling back to default config.")
             config = load_config()
 
-        actor = SActor(config).to(device)
+        actor = Actor(config).to(device)
         actor.load_state_dict(checkpoint['model_state_dict'])
         actor.eval()
 
@@ -114,43 +114,42 @@ def main():
 
     NUM_TEST_EPISODES = 100
 
+    target_levels = np.array([80, 180, 40])
+    base_stock_policy = BaseStockPolicy(env, z=target_levels)
+
     print(
-        f"\nRunning Min-Max Policy Experiment ({NUM_TEST_EPISODES} episodes)...")
-    min_max_rewards = []
-    min_max_policy = MinMaxPolicy(env)
+        f"\nRunning Base Stock Policy Experiment (z={target_levels}, {NUM_TEST_EPISODES} episodes)...")
+    baseline_rewards = []
+
+    def base_stock_callable(obs_val):
+        return base_stock_policy.get_action()
 
     for _ in range(NUM_TEST_EPISODES):
-        S_levels = sorted(np.random.randint(10, 200, size=3))
-        s_levels = [np.random.randint(0, S) for S in S_levels]
-        episode_policy_params = np.column_stack((s_levels, S_levels))
-
-        def min_max_callable(obs_val): return min_max_policy.get_action(
-            params=episode_policy_params)
-        min_max_rewards.append(run_episode(
-            env, agent=None, render=False, baseline_policy_callable=min_max_callable))
+        baseline_rewards.append(run_episode(
+            env, agent=None, render=False, baseline_policy_callable=base_stock_callable))
 
     print(f"\nRunning IQL Agent Experiment ({NUM_TEST_EPISODES} episodes)...")
     agent_rewards = []
     for _ in range(NUM_TEST_EPISODES):
         agent_rewards.append(run_episode(env, agent=actor, render=False))
 
-    min_max_mean = np.mean(min_max_rewards)
-    min_max_std = np.std(min_max_rewards)
+    base_mean = np.mean(baseline_rewards)
+    base_std = np.std(baseline_rewards)
     agent_mean = np.mean(agent_rewards)
     agent_std = np.std(agent_rewards)
 
     t_stat, p_value = stats.ttest_ind(
-        agent_rewards, min_max_rewards, equal_var=False)
+        agent_rewards, baseline_rewards, equal_var=False)
 
-    diff = agent_mean - min_max_mean
-    pct_improvement = (diff / abs(min_max_mean)) * \
-        100 if min_max_mean != 0 else 0
+    diff = agent_mean - base_mean
+    pct_improvement = (diff / abs(base_mean)) * \
+        100 if base_mean != 0 else 0
 
     results_data = {
         "baseline": {
-            "name": "Randomized Min-Max Policy",
-            "mean_reward": float(min_max_mean),
-            "std_dev": float(min_max_std),
+            "name": f"Base Stock Policy (z={target_levels.tolist()})",
+            "mean_reward": float(base_mean),
+            "std_dev": float(base_std),
             "n_episodes": NUM_TEST_EPISODES
         },
         "method": {
@@ -168,18 +167,23 @@ def main():
     }
     save_results(results_data)
 
-    print("\n" + "="*30)
+    print("\n" + "="*40)
     print("FINAL RESULTS (Averaged)")
-    print("="*30)
-    print(f"Min-Max Policy: {min_max_mean:.2f} +/- {min_max_std:.2f}")
-    print(f"IQL Agent:     {agent_mean:.2f} +/- {agent_std:.2f}")
-    print("-" * 30)
+    print("="*40)
+    print(f"Base Stock Policy: {base_mean:.2f} +/- {base_std:.2f}")
+    print(f"IQL Agent:         {agent_mean:.2f} +/- {agent_std:.2f}")
+    print("-" * 40)
     if diff > 0:
         print(f"Improvement: +{diff:.2f} (+{pct_improvement:.1f}%)")
     else:
         print(f"Difference: {diff:.2f}")
+
     print(f"P-value: {p_value:.4e}")
-    print("="*30)
+    if p_value < 0.05:
+        print("Result: Statistically Significant")
+    else:
+        print("Result: Not Significant")
+    print("="*40)
 
 
 if __name__ == "__main__":

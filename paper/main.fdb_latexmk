@@ -1,15 +1,15 @@
 # Fdb version 4
-["bibtex main"] 1765730533.78035 "main.aux" "main.bbl" "main" 1765730916.58809 0
+["bibtex main"] 1768117749.78181 "main.aux" "main.bbl" "main" 1768117750.70404 0
   "./references.bib" 1765011590.12705 1402 d21ac2bbb82fb142439e22786b699ac6 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/natbib/plainnat.bst" 1233624470 26816 ffe5423d2019860bad9f54bc402fac15 ""
-  "main.aux" 1765730916.26283 3646 2c36795de9324731ca9f21e7732bf7b3 "pdflatex"
+  "main.aux" 1768117750.42519 3490 1d8f9f5650fb3319cc71db8cc03bcfd7 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1765730915.69087 "/home/hoang/python/inventory_control/paper/main.tex" "main.pdf" "main" 1765730916.58826 0
+["pdflatex"] 1768117749.90371 "/home/hoang/python/inventory_control/paper/main.tex" "main.pdf" "main" 1768117750.70423 0
   "/etc/texmf/web2c/texmf.cnf" 1726318391.86983 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/hoang/python/inventory_control/paper/main.tex" 1765730616.6188 2685 bea6acd1de36d28e969822b3ca152996 ""
+  "/home/hoang/python/inventory_control/paper/main.tex" 1768117704.01946 2687 12744f8a51d9c1b4c20a763bcf369bc3 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/courier/pcrb7t.tfm" 1136768653 960 4ab65358b8406f30ef5496c8c096d22b ""
@@ -95,7 +95,6 @@
   "/usr/share/texlive/texmf-dist/tex/latex/caption/caption.sty" 1696191071 56128 c2ccf1a29d78c33bc553880402e4fb9a ""
   "/usr/share/texlive/texmf-dist/tex/latex/caption/caption3.sty" 1696191071 72619 ee90b6612147680fd73c3b1406a74245 ""
   "/usr/share/texlive/texmf-dist/tex/latex/caption/subcaption.sty" 1690576852 12494 0c0cdb824278a4d51cefeb2e79901315 ""
-  "/usr/share/texlive/texmf-dist/tex/latex/cite/cite.sty" 1425427964 26218 19edeff8cdc2bcb704e8051dc55eb5a7 ""
   "/usr/share/texlive/texmf-dist/tex/latex/environ/environ.sty" 1399239813 4378 f429f0da968c278653359293040a8f52 ""
   "/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty" 1579991033 13886 d1306dcf79a944f6988e688c1785f9ce ""
   "/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf.sty" 1579991033 4393 47f27fd4d95928d20b1885ba77de11d2 ""
@@ -122,6 +121,7 @@
   "/usr/share/texlive/texmf-dist/tex/latex/mathtools/mathtools.sty" 1656621545 62269 5c1837a5bc5db4c0d255eedc225ca44b ""
   "/usr/share/texlive/texmf-dist/tex/latex/mathtools/mhsetup.sty" 1616101747 5582 a43dedf8e5ec418356f1e9dfe5d29fc3 ""
   "/usr/share/texlive/texmf-dist/tex/latex/multirow/multirow.sty" 1615845910 6149 2398eec4faa1ee24ff761581e580ecf1 ""
+  "/usr/share/texlive/texmf-dist/tex/latex/natbib/natbib.sty" 1707919699 45458 f1c6cb3edd91174e966cbbaf88993bcf ""
   "/usr/share/texlive/texmf-dist/tex/latex/optidef/optidef.sty" 1556836755 24625 1f9a54f633aad013cc9fd957e79ea7ee ""
   "/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1pcr.fd" 1137110629 985 1ed784d7bfe47179f3550d2303b073f8 ""
   "/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ptm.fd" 1137110629 961 15056f4a61917ceed3a44e4ac11fcc52 ""
@@ -137,11 +137,11 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1754730565.58494 5472669 54eaf61a88b6b7896ebd0dac973cb29c ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1754730586 8212838 b723ed00e8ba5f01545ca8ae5e42b53f ""
-  "main.aux" 1765730916.26283 3646 2c36795de9324731ca9f21e7732bf7b3 "pdflatex"
-  "main.bbl" 1765730533.90729 1402 968c3876ef5a7f78e718f4026dcd738e "bibtex main"
-  "main.tex" 1765730616.6188 2685 bea6acd1de36d28e969822b3ca152996 ""
+  "main.aux" 1768117750.42519 3490 1d8f9f5650fb3319cc71db8cc03bcfd7 "pdflatex"
+  "main.bbl" 1768117749.89718 1168 49f3e62a493b018713d86d308bec899f "bibtex main"
+  "main.tex" 1768117704.01946 2687 12744f8a51d9c1b4c20a763bcf369bc3 ""
   "sections/00_abstract.tex" 1765729350.95465 1352 21113bc7bf79d8b2b9597516cc3623b4 ""
-  "sections/01_introduction.tex" 1765729520.79661 2353 43e33ce19ce40e63b2a33666e4d48646 ""
+  "sections/01_introduction.tex" 1768117747.83315 2326 ed1abe4b18f9a3efb3b44fb8d1c64f24 ""
   "sections/02_related_work.tex" 1765730915.41581 2693 a671350e0c71698fde6ce02301d17b7f ""
   "sections/03_methodology.tex" 1765730882.16998 8639 026d67eca67a365da7f6580a1e9688f3 ""
   "sections/04_experiments.tex" 1765730472.84534 1547 a7aab2373e51fd9599e9043fb13377eb ""

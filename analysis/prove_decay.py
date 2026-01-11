@@ -1,7 +1,9 @@
+import os
+from pathlib import Path
+
 import torch
 import numpy as np
 import pandas as pd
-
 
 def compute_discounted_returns(rewards, gamma=0.99):
     """
@@ -13,7 +15,6 @@ def compute_discounted_returns(rewards, gamma=0.99):
         G = r + gamma * G
         returns.insert(0, G)
     return returns
-
 
 def main():
     dataset_path = "data/inv_management_base_stock.pt"
@@ -86,7 +87,6 @@ def main():
         f"Percentage of states with NEGATIVE Future Value: {neg_percent:.1f}%")
     print(
         f"Average Value of these 'Doomed' states:          {df[df['G_t_scaled'] < 0]['G_t_scaled'].mean():.4f}")
-
 
 if __name__ == "__main__":
     main()

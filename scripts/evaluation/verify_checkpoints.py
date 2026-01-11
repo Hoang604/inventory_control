@@ -7,7 +7,7 @@ import pandas as pd
 from utils.config_loader import load_config
 from src.base.inv_management_env import InvManagementEnv
 from src.models.iql.actor import Actor
-from src.base.policies import MinMaxPolicy
+from src.base.policies import BaseStockPolicy
 
 
 def run_evaluation_loop(env, agent, num_episodes=30):
@@ -37,22 +37,19 @@ def run_evaluation_loop(env, agent, num_episodes=30):
 
 
 def get_baseline_performance(env, num_episodes=30):
-    """Calculates the baseline MinMax policy performance."""
-    min_max_policy = MinMaxPolicy(env)
+    """Calculates the baseline Best Expert (Base-Stock) performance."""
+    # Use the same Best Expert baseline as test_agent.py and test_agent_ablation.py
+    target_levels = np.array([80, 180, 40])
+    base_stock_policy = BaseStockPolicy(env, z=target_levels)
     rewards = []
 
     for _ in range(num_episodes):
         obs, _ = env.reset()
-
-        S_levels = sorted(np.random.randint(10, 200, size=3))
-        s_levels = [np.random.randint(0, S) for S in S_levels]
-        policy_params = np.column_stack((s_levels, S_levels))
-
         done = False
         total_reward = 0
 
         while not done:
-            action = min_max_policy.get_action(params=policy_params)
+            action = base_stock_policy.get_action()
             next_obs, reward, done, _, _ = env.step(action)
             total_reward += reward
             obs = next_obs
@@ -77,14 +74,14 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     env = InvManagementEnv(render_mode=None)
 
-    print("\nCalculating Baseline (MinMax) Performance...")
+    print("\nCalculating Baseline (Best Expert: Base-Stock z=[80,180,40]) Performance...")
     baseline_mean, baseline_std = get_baseline_performance(
         env, num_episodes=250)
     print(f"Baseline: {baseline_mean:.2f} +/- {baseline_std:.2f}\n")
 
     all_results = []
 
-    print(f"{ 'Experiment':<40} | { 'Epoch':<5} | { 'Mean Reward':<12} | { 'Std Dev':<10} | { 'Diff':<10}")
+    print(f"{'Experiment':<40} | {'Epoch':<5} | {'Mean Reward':<12} | {'Std Dev':<10} | {'Diff':<10}")
     print("-" * 95)
 
     for experiment_path in experiment_dirs:

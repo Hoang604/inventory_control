@@ -1,4 +1,4 @@
-\begin{thebibliography}{4}
+\begin{thebibliography}{3}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -19,10 +19,5 @@ Ilya Kostrikov, Ashvin Nair, and Sergey Levine.
 Sergey Levine, Aviral Kumar, George Tucker, and Justin Fu.
 \newblock Offline reinforcement learning: Tutorial, review, and perspectives on open problems.
 \newblock \emph{arXiv preprint arXiv:2005.01643}, 2020.
-
-\bibitem[Silver et~al.(2016)Silver, Pyke, and Thomas]{silver2016inventory}
-Edward~A Silver, David~F Pyke, and Douglas~J Thomas.
-\newblock \emph{Inventory management and production planning and scheduling}.
-\newblock CRC press, 2016.
 
 \end{thebibliography}

@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from tqdm import tqdm
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -8,6 +9,7 @@ import datetime
 from pathlib import Path
 from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
+from scipy.stats import spearmanr
 
 from .critics import VNet, QNet
 from .actor import Actor
@@ -53,6 +55,162 @@ class IQLAgent:
             self.q_optimizer, T_max=epochs, eta_min=eta_min)
         self.actor_scheduler = CosineAnnealingLR(
             self.actor_optimizer, T_max=epochs, eta_min=eta_min)
+
+    def _calculate_expectile(self, values: np.ndarray, tau: float, tolerance: float = 1e-6, max_iter: int = 1000) -> float:
+        """Solves for the tau-expectile of the given values."""
+        if len(values) == 0:
+            return 0.0
+
+        e = np.mean(values)
+
+        for _ in range(max_iter):
+            indices_high = values > e
+            count_high = np.sum(indices_high)
+            count_low = np.sum(~indices_high)
+
+            if count_high == 0 or count_low == 0:
+                break
+
+            sum_high = np.sum(values[indices_high])
+            sum_low = np.sum(values[~indices_high])
+
+            numerator = tau * sum_high + (1 - tau) * sum_low
+            denominator = tau * count_high + (1 - tau) * count_low
+
+            new_e = numerator / denominator
+
+            if abs(new_e - e) < tolerance:
+                return new_e
+            e = new_e
+
+        return e
+
+    def _compute_exact_q_v_targets(
+        self,
+        rewards: np.ndarray,
+        steps_per_episode: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Computes exact Q* and V* using backward dynamic programming.
+
+        Args:
+            rewards: Shape (num_episodes, steps_per_episode) - scaled rewards
+            steps_per_episode: Number of steps per episode
+
+        Returns:
+            q_star: Shape (num_episodes, steps_per_episode) - exact Q* per sample
+            v_star_per_sample: Shape (num_episodes, steps_per_episode) - V* broadcasted
+        """
+        num_episodes = rewards.shape[0]
+
+        q_star = np.zeros((num_episodes, steps_per_episode))
+        v_star = np.zeros(steps_per_episode)
+
+        # Backward pass: t = T-1, T-2, ..., 0
+        for t in range(steps_per_episode - 1, -1, -1):
+            if t == steps_per_episode - 1:
+                q_star[:, t] = rewards[:, t]
+            else:
+                q_star[:, t] = rewards[:, t] + self.gamma * v_star[t + 1]
+
+            v_star[t] = self._calculate_expectile(q_star[:, t], self.tau)
+
+        v_star_per_sample = np.broadcast_to(v_star, (num_episodes, steps_per_episode))
+
+        return q_star, v_star_per_sample
+
+    def _compute_spearman_correlation(
+        self,
+        val_dataloader: DataLoader,
+        steps_per_episode: int,
+        cached_targets: dict = None
+    ) -> tuple[float, float, dict]:
+        """
+        Computes Spearman rank correlation between model Q/V and exact targets.
+
+        Args:
+            val_dataloader: Validation dataloader
+            steps_per_episode: Number of steps per episode (for reshaping)
+            cached_targets: Optional dict with pre-computed 'q_star', 'v_star_per_sample',
+                           'states', 'actions'. If None, will compute and return them.
+
+        Returns:
+            spearman_q: Spearman correlation for Q-network
+            spearman_v: Spearman correlation for V-network
+            cached_targets: Dict with cached data for reuse
+        """
+        self.q_net.eval()
+        self.v_net.eval()
+
+        # Use cached targets if available, otherwise compute them
+        if cached_targets is None:
+            all_states = []
+            all_actions = []
+            all_rewards = []
+
+            # Collect all validation data
+            with torch.no_grad():
+                for state_batch, action_batch, reward_batch, _, _ in val_dataloader:
+                    all_states.append(state_batch)
+                    all_actions.append(action_batch)
+                    all_rewards.append(reward_batch)
+
+            states = torch.cat(all_states)
+            actions = torch.cat(all_actions)
+            rewards = torch.cat(all_rewards)
+
+            total_samples = len(states)
+            num_episodes = total_samples // steps_per_episode
+
+            # Truncate to exact multiple of steps_per_episode
+            truncated_samples = num_episodes * steps_per_episode
+            states = states[:truncated_samples]
+            actions = actions[:truncated_samples]
+            rewards = rewards[:truncated_samples]
+
+            # Reshape rewards and compute exact targets (ONLY ONCE)
+            # Note: rewards from dataloader are already scaled in train_q_v_net.py
+            rewards_np = rewards.cpu().numpy().flatten().reshape(num_episodes, steps_per_episode)
+            q_star, v_star_per_sample = self._compute_exact_q_v_targets(rewards_np, steps_per_episode)
+
+            cached_targets = {
+                'states': states,
+                'actions': actions,
+                'q_star': q_star,
+                'v_star_per_sample': v_star_per_sample,
+                'num_episodes': num_episodes,
+                'steps_per_episode': steps_per_episode
+            }
+        else:
+            states = cached_targets['states']
+            actions = cached_targets['actions']
+            q_star = cached_targets['q_star']
+            v_star_per_sample = cached_targets['v_star_per_sample']
+            num_episodes = cached_targets['num_episodes']
+
+        # Get model predictions
+        q_model = np.zeros((num_episodes, steps_per_episode))
+        v_model = np.zeros((num_episodes, steps_per_episode))
+
+        with torch.no_grad():
+            for ep in range(num_episodes):
+                start_idx = ep * steps_per_episode
+                end_idx = start_idx + steps_per_episode
+
+                ep_states = states[start_idx:end_idx].to(self.device)
+                ep_actions = actions[start_idx:end_idx].to(self.device)
+
+                q_model[ep, :] = self.q_net(ep_states, ep_actions).cpu().numpy().flatten()
+                v_model[ep, :] = self.v_net(ep_states).cpu().numpy().flatten()
+
+        # Compute Spearman correlations
+        spearman_q, _ = spearmanr(q_model.flatten(), q_star.flatten())
+        spearman_v, _ = spearmanr(v_model.flatten(), v_star_per_sample.flatten())
+
+        self.q_net.train()
+        self.v_net.train()
+
+        return spearman_q, spearman_v, cached_targets
 
     def _perform_one_batch_step_for_v_net(self, state_batch: torch.Tensor, target_batch: torch.Tensor, batch_step):
         """Calculates and applies the asymmetric L2 loss for the V-network.
@@ -290,7 +448,10 @@ class IQLAgent:
             _, _ = self._load_model(
                 model_name='q_net', file_path=resume_q_path)
 
-        q_best_loss = torch.inf
+        # Use Spearman correlation for best model selection (higher is better)
+        best_spearman_q = -torch.inf
+        steps_per_episode = self.config.get('environment', {}).get('days_per_warehouse', 30)
+        cached_spearman_targets = None  # Will be computed once on first epoch
 
         start_epoch = 0
 
@@ -356,6 +517,12 @@ class IQLAgent:
             self.writer.add_scalar('Loss/val_v_loss', val_v_loss, global_step)
             self.writer.add_scalar('Loss/val_q_loss', val_q_loss, global_step)
 
+            # Compute Spearman correlation for model selection (cached targets reused)
+            spearman_q, spearman_v, cached_spearman_targets = self._compute_spearman_correlation(
+                val_dataloader, steps_per_episode, cached_spearman_targets)
+            self.writer.add_scalar('Correlation/spearman_q', spearman_q, global_step)
+            self.writer.add_scalar('Correlation/spearman_v', spearman_v, global_step)
+
             stability_score = val_q_mean - 1.0 * val_q_std
             self.writer.add_scalar('Value/val_q_mean', val_q_mean, global_step)
             self.writer.add_scalar('Value/val_q_std', val_q_std, global_step)
@@ -366,8 +533,8 @@ class IQLAgent:
             if (epoch + 1) % 10 == 0 or epoch == epochs - 1:
                 tqdm.write(
                     f"Epoch {epoch+1:3d}/{epochs}: "
-                    f"Q-Loss={q_mean_loss:.4f}, "
-                    f"V-Loss={v_mean_loss:.4f}, "
+                    f"ρ(Q)={spearman_q:.4f}, "
+                    f"ρ(V)={spearman_v:.4f}, "
                     f"Val-Q-Loss={val_q_loss:.4f}, "
                     f"Stability={stability_score:.2f}"
                 )
@@ -383,15 +550,19 @@ class IQLAgent:
                 'val_q_mean': val_q_mean,
                 'val_q_std': val_q_std,
                 'stability_score': stability_score,
+                'spearman_q': spearman_q,
+                'spearman_v': spearman_v,
                 'lr': current_lr
             })
 
-            if val_q_loss < q_best_loss:
-                q_best_loss = val_q_loss
+            # Save best model based on Spearman correlation (higher is better)
+            if spearman_q > best_spearman_q:
+                best_spearman_q = spearman_q
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='q_net', loss=q_best_loss)
+                    epoch, save_best_loss=True, model_name='q_net', loss=spearman_q)
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='v_net', loss=val_v_loss)
+                    epoch, save_best_loss=True, model_name='v_net', loss=spearman_v)
+                tqdm.write(f"  -> New best model saved! ρ(Q)={spearman_q:.4f}")
 
             if (epoch + 1) % self.checkpoint_interval == 0:
                 self._save_checkpoint(
@@ -633,7 +804,7 @@ class IQLAgent:
                 f"Unknown model name: {model_name}. Cannot load.")
             return 0
 
-        checkpoint = torch.load(file_path, map_location=self.device)
+        checkpoint = torch.load(file_path, map_location=self.device, weights_only=False)
         model_to_load.load_state_dict(checkpoint['model_state_dict'])
         optimizer_to_load.load_state_dict(checkpoint['optimizer_state_dict'])
 

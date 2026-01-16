@@ -4,14 +4,13 @@ Train Q-Network and V-Network
 This module trains the Q and V critic networks for IQL.
 Can be used standalone or imported by main.py for pipeline orchestration.
 """
-from scripts.data_generation.generate_dataset import generate_base_stock_dataset
 from src.models.iql.agent import IQLAgent
 from src.models.iql.critics import QNet, VNet
 from src.models.iql.actor import Actor
 from utils.logger_config import setup_logging
 from utils.config_loader import load_config
 import logging
-from torch.utils.data import TensorDataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import Adam
 import torch
 import os
@@ -50,38 +49,79 @@ def train_qv_networks(dataset_path=None, experiment_name=None):
     seed = config['training'].get('seed', 42)
 
     project_root = Path(__file__).resolve().parents[2]
-    # Dataset configuration
+
+    # Dataset configuration from config.yaml
     if dataset_path is None:
-        dataset_path = str(project_root / "data" / "inv_management_base_stock.pt")
+        dataset_config = config.get('dataset', {})
+        explicit_path = dataset_config.get('path')
+
+        if explicit_path:
+            dataset_path = str(project_root / explicit_path)
+        else:
+            dataset_name = dataset_config.get('name', 'continuing')
+            dataset_mapping = {
+                'continuing': 'inv_management_continuing.pt',
+                'base_stock': 'inv_management_base_stock.pt',
+                'single_expert': 'inv_management_single_expert.pt',
+                'multi_policy': 'inv_management_multi_policy.pt',
+            }
+            dataset_file = dataset_mapping.get(
+                dataset_name, f'inv_management_{dataset_name}.pt')
+            dataset_path = str(project_root / "data" / dataset_file)
 
     if not os.path.exists(dataset_path):
-        logger.info(
-            f"Dataset not found at {dataset_path}. Generating dataset...")
-        generate_base_stock_dataset(
-            num_episodes=2000,
-            steps_per_episode=30,
-            save_path=dataset_path
+        logger.error(
+            f"Dataset not found at {dataset_path}. "
+            f"Please generate the dataset first."
         )
+        return None
 
     logger.info(f"Loading dataset from {dataset_path}")
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     states = dataset['states']
     actions = dataset['actions']
     rewards = dataset['rewards'] * reward_scale
     next_states = dataset['next_states']
     dones = dataset['dones']
 
-    # Data preparation
-    full_dataset = TensorDataset(states, actions, rewards, next_states, dones)
-    total_size = len(full_dataset)
-    train_size = int(validation_split * total_size)
-    val_size = total_size - train_size
+    # Episode-level data splitting (preserves episode structure for Spearman correlation)
+    steps_per_episode = config.get(
+        'environment', {}).get('days_per_warehouse', 30)
+    total_samples = len(states)
+    num_episodes = total_samples // steps_per_episode
 
-    generator = torch.Generator().manual_seed(seed)
-    train_dataset, val_dataset = random_split(
-        full_dataset, [train_size, val_size], generator=generator)
+    # Truncate to exact multiple of steps_per_episode
+    truncated_samples = num_episodes * steps_per_episode
+    states = states[:truncated_samples]
+    actions = actions[:truncated_samples]
+    rewards = rewards[:truncated_samples]
+    next_states = next_states[:truncated_samples]
+    dones = dones[:truncated_samples]
 
-    logger.info(f"Data split: {train_size} train, {val_size} validation")
+    # Split at EPISODE level (not sample level)
+    train_episodes = int(validation_split * num_episodes)
+    val_episodes = num_episodes - train_episodes
+    train_end_idx = train_episodes * steps_per_episode
+
+    train_states = states[:train_end_idx]
+    train_actions = actions[:train_end_idx]
+    train_rewards = rewards[:train_end_idx]
+    train_next_states = next_states[:train_end_idx]
+    train_dones = dones[:train_end_idx]
+
+    val_states = states[train_end_idx:]
+    val_actions = actions[train_end_idx:]
+    val_rewards = rewards[train_end_idx:]
+    val_next_states = next_states[train_end_idx:]
+    val_dones = dones[train_end_idx:]
+
+    train_dataset = TensorDataset(
+        train_states, train_actions, train_rewards, train_next_states, train_dones)
+    val_dataset = TensorDataset(
+        val_states, val_actions, val_rewards, val_next_states, val_dones)
+
+    logger.info(f"Episode-level split: {train_episodes} train episodes ({len(train_dataset)} samples), "
+                f"{val_episodes} val episodes ({len(val_dataset)} samples)")
 
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,

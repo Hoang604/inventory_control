@@ -66,7 +66,7 @@ def analyze_theoretical_v_by_tau(
     Computes theoretical V (tau-expectile of G_t) for each timestep and tau value.
     """
     # Load dataset
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     rewards_tensor = dataset['rewards'].flatten()
     
     total_samples = len(rewards_tensor)

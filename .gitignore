@@ -18,3 +18,4 @@ data
 *.fls
 *.synctex.gz
 *.bib
+analysis/checkpoints_exact

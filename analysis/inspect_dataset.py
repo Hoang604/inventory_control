@@ -7,7 +7,7 @@ import os
 def calculate_ground_truth(dataset_path, gamma=0.99, steps_per_episode=30):
     print(f"Loading {dataset_path}...")
     try:
-        dataset = torch.load(dataset_path)
+        dataset = torch.load(dataset_path, weights_only=False)
     except Exception as e:
         print(f"Failed to load: {e}")
         return

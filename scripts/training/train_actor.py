@@ -11,7 +11,7 @@ from utils.logger_config import setup_logging
 from utils.config_loader import load_config
 import logging
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import TensorDataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import Adam
 import argparse
 import torch
@@ -51,33 +51,71 @@ def train_actor_network(experiment_id, dataset_path=None):
     seed = config['training'].get('seed', 42)
 
     project_root = Path(__file__).resolve().parents[2]
-    # Dataset loading
+
+    # Dataset configuration from config.yaml
     if dataset_path is None:
-        dataset_path = str(project_root / "data" /
-                           "inv_management_base_stock.pt")
+        dataset_config = config.get('dataset', {})
+        explicit_path = dataset_config.get('path')
+        
+        if explicit_path:
+            dataset_path = str(project_root / explicit_path)
+        else:
+            dataset_name = dataset_config.get('name', 'continuing')
+            dataset_mapping = {
+                'continuing': 'inv_management_continuing.pt',
+                'base_stock': 'inv_management_base_stock.pt',
+                'single_expert': 'inv_management_single_expert.pt',
+                'multi_policy': 'inv_management_multi_policy.pt',
+            }
+            dataset_file = dataset_mapping.get(dataset_name, f'inv_management_{dataset_name}.pt')
+            dataset_path = str(project_root / "data" / dataset_file)
 
     if not os.path.exists(dataset_path):
         logger.error(f"Dataset not found at {dataset_path}")
         return False
 
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     states = dataset['states']
     actions = dataset['actions']
     rewards = dataset['rewards'] * reward_scale
     next_states = dataset['next_states']
     dones = dataset['dones']
 
-    # Data preparation
-    full_dataset = TensorDataset(states, actions, rewards, next_states, dones)
-    total_size = len(full_dataset)
-    train_size = int(validation_split * total_size)
-    val_size = total_size - train_size
+    # Episode-level data splitting (preserves episode structure for Spearman correlation)
+    steps_per_episode = config.get('environment', {}).get('days_per_warehouse', 30)
+    total_samples = len(states)
+    num_episodes = total_samples // steps_per_episode
 
-    generator = torch.Generator().manual_seed(seed)
-    train_dataset, val_dataset = random_split(
-        full_dataset, [train_size, val_size], generator=generator)
+    # Truncate to exact multiple of steps_per_episode
+    truncated_samples = num_episodes * steps_per_episode
+    states = states[:truncated_samples]
+    actions = actions[:truncated_samples]
+    rewards = rewards[:truncated_samples]
+    next_states = next_states[:truncated_samples]
+    dones = dones[:truncated_samples]
 
-    logger.info(f"Data split: {train_size} train, {val_size} validation")
+    # Split at EPISODE level (not sample level)
+    train_episodes = int(validation_split * num_episodes)
+    val_episodes = num_episodes - train_episodes
+    train_end_idx = train_episodes * steps_per_episode
+
+    train_states = states[:train_end_idx]
+    train_actions = actions[:train_end_idx]
+    train_rewards = rewards[:train_end_idx]
+    train_next_states = next_states[:train_end_idx]
+    train_dones = dones[:train_end_idx]
+
+    val_states = states[train_end_idx:]
+    val_actions = actions[train_end_idx:]
+    val_rewards = rewards[train_end_idx:]
+    val_next_states = next_states[train_end_idx:]
+    val_dones = dones[train_end_idx:]
+
+    train_dataset = TensorDataset(train_states, train_actions, train_rewards, train_next_states, train_dones)
+    val_dataset = TensorDataset(val_states, val_actions, val_rewards, val_next_states, val_dones)
+
+    logger.info(f"Episode-level split: {train_episodes} train episodes ({len(train_dataset)} samples), "
+                f"{val_episodes} val episodes ({len(val_dataset)} samples)")
 
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True,
@@ -100,8 +138,8 @@ def train_actor_network(experiment_id, dataset_path=None):
         return False
 
     # Load pre-trained Q and V networks
-    best_q_path = experiment_checkpoint_path / "q_net" / "checkpoint_epoch_59.pth"
-    best_v_path = experiment_checkpoint_path / "v_net" / "checkpoint_epoch_59.pth"
+    best_q_path = experiment_checkpoint_path / "q_net" / "best_loss.pth"
+    best_v_path = experiment_checkpoint_path / "v_net" / "best_loss.pth"
 
     if not best_q_path.exists():
         logger.error(f"Q-Net checkpoint not found at {best_q_path}")
@@ -111,8 +149,8 @@ def train_actor_network(experiment_id, dataset_path=None):
         logger.error(f"V-Net checkpoint not found at {best_v_path}")
         return False
 
-    q_checkpoint_data = torch.load(best_q_path, map_location=device)
-    v_checkpoint_data = torch.load(best_v_path, map_location=device)
+    q_checkpoint_data = torch.load(best_q_path, map_location=device, weights_only=False)
+    v_checkpoint_data = torch.load(best_v_path, map_location=device, weights_only=False)
     logger.info("Loaded Q and V network checkpoints")
 
     # Use config from checkpoints if available
@@ -175,22 +213,22 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train Actor network for IQL Agent")
     parser.add_argument(
-        "--experiment_id", type=str, required=True,
+        "--experiment", type=str, required=True,
         help="Experiment folder name in checkpoints/ and logs/")
     args = parser.parse_args()
 
     logger.info("="*60)
     logger.info("Training Actor Network")
     logger.info("="*60)
-    logger.info(f"Experiment ID: {args.experiment_id}")
+    logger.info(f"Experiment ID: {args.experiment}")
 
-    success = train_actor_network(args.experiment_id)
+    success = train_actor_network(args.experiment)
 
     if success:
         logger.info("\n" + "="*60)
         logger.info("ACTOR TRAINING COMPLETE")
         logger.info("="*60)
-        logger.info(f"Checkpoints: checkpoints/{args.experiment_id}/actor/")
+        logger.info(f"Checkpoints: checkpoints/{args.experiment}/actor/")
         logger.info("="*60)
     else:
         logger.error("Actor training failed")

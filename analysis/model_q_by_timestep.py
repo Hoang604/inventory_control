@@ -77,7 +77,7 @@ def analyze_model_q_by_timestep(
     config = load_config()
 
     # Load dataset
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     states = dataset['states']
     actions = dataset['actions']
     rewards_tensor = dataset['rewards'].flatten()
@@ -86,14 +86,14 @@ def analyze_model_q_by_timestep(
     num_episodes = total_samples // steps_per_episode
 
     # Load Q-network
-    q_checkpoint = torch.load(q_checkpoint_path, map_location=device)
+    q_checkpoint = torch.load(q_checkpoint_path, map_location=device, weights_only=False)
     q_config = q_checkpoint.get('config', config)
     q_net = QNet(q_config).to(device)
     q_net.load_state_dict(q_checkpoint['model_state_dict'])
     q_net.eval()
 
     # Load V-network
-    v_checkpoint = torch.load(v_checkpoint_path, map_location=device)
+    v_checkpoint = torch.load(v_checkpoint_path, map_location=device, weights_only=False)
     v_config = v_checkpoint.get('config', config)
     v_net = VNet(v_config).to(device)
     v_net.load_state_dict(v_checkpoint['model_state_dict'])

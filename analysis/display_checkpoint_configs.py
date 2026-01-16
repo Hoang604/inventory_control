@@ -16,7 +16,7 @@ def load_and_print_config(file_path):
         return
 
     try:
-        checkpoint = torch.load(file_path, map_location='cpu')
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         if 'config' in checkpoint:
             print("Config found in checkpoint:")
             pprint.pprint(checkpoint['config'])

@@ -111,7 +111,7 @@ def main():
 
         for epoch, file_path in selected_checkpoints:
             try:
-                checkpoint_data = torch.load(file_path, map_location=device)
+                checkpoint_data = torch.load(file_path, map_location=device, weights_only=False)
 
                 if 'config' in checkpoint_data:
                     current_config = checkpoint_data['config']

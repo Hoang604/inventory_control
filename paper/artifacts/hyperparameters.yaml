@@ -5,13 +5,17 @@ actor:
 env:
   action_dim: 3
   state_dim: 33
+environment:
+  days_per_warehouse: 3650
+  num_warehouses: 10
 intermediate_dim: 1024
 iql:
+  actor_learning_rate: 3e-6
   alpha: 0.005
   beta: 1.0
-  eta_min: 1e-6
-  gamma: 0.99
-  learning_rate: 3e-4
+  eta_min: 1e-7
+  gamma: 0.95
+  learning_rate: 1e-4
   tau: 0.8
 training:
   adv_weight_clip: 100.0
@@ -19,7 +23,7 @@ training:
   checkpoint_interval: 5
   epochs: 100
   grad_norm_clip: 1.0
-  log_interval: 100
+  log_interval: 1
   reward_scale: 0.1
   seed: 42
   validation_split: 0.8

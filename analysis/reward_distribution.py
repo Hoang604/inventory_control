@@ -20,7 +20,7 @@ def plot_reward_distribution(dataset_path: str, output_path: str | None = None) 
         dataset_path: Path to the .pt dataset file.
         output_path: Optional path to save the figure. If None, displays interactively.
     """
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     rewards = dataset['rewards'].numpy().flatten()
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -88,14 +88,31 @@ def plot_reward_distribution(dataset_path: str, output_path: str | None = None) 
         print(f"Figure saved to: {output_path}")
     else:
         plt.show()
+    
+    plt.close(fig)
 
 
 if __name__ == "__main__":
-    # Default dataset path
-    default_dataset = PROJECT_ROOT / "data" / "inv_management_base_stock.pt"
+    data_dir = PROJECT_ROOT / "data"
     
-    if default_dataset.exists():
-        plot_reward_distribution(str(default_dataset))
-    else:
-        print(f"Dataset not found at {default_dataset}")
-        print("Usage: python reward_distribution.py")
+    if not data_dir.exists():
+        print(f"Data directory not found: {data_dir}")
+        exit(1)
+
+    dataset_files = list(data_dir.glob("*.pt"))
+    
+    if not dataset_files:
+        print(f"No .pt files found in {data_dir}")
+        exit(0)
+
+    print(f"Found {len(dataset_files)} datasets. Starting batch analysis...")
+    
+    for dataset_path in dataset_files:
+        try:
+            output_path = dataset_path.with_suffix(".png")
+            plot_reward_distribution(str(dataset_path), str(output_path))
+        except Exception as e:
+            print(f"FAILED to process {dataset_path.name}: {e}")
+            continue
+
+    print("\nBatch analysis complete.")

@@ -18,6 +18,7 @@ from pathlib import Path
 import argparse
 import sys
 import re
+from scipy.stats import spearmanr
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -115,6 +116,7 @@ def analyze_single_checkpoint(
     dataset: dict,
     config: dict,
     device: torch.device,
+    cached_targets: dict,
     gamma: float = 0.99,
     steps_per_episode: int = 30,
     reward_scale: float = 0.1,
@@ -122,33 +124,27 @@ def analyze_single_checkpoint(
 ) -> dict:
     """
     Analyzes a single Q/V checkpoint using exact backward DP targets.
+
+    Args:
+        cached_targets: Pre-computed dict with 'q_star', 'v_star', 'v_star_per_sample',
+                       'states', 'actions', 'num_episodes'
     """
-    states = dataset['states']
-    actions = dataset['actions']
-    rewards_tensor = dataset['rewards'].flatten()
-    dones_tensor = dataset['dones'].flatten()
-
-    total_samples = len(states)
-    num_episodes = total_samples // steps_per_episode
-
-    # Reshape rewards and dones to (num_episodes, steps_per_episode)
-    rewards = rewards_tensor.numpy().reshape(num_episodes, steps_per_episode) * reward_scale
-    dones = dones_tensor.numpy().reshape(num_episodes, steps_per_episode)
-
-    # Compute exact Q* and V* using backward DP
-    q_star, v_star, v_star_per_sample = compute_exact_q_v_backward(
-        rewards, dones, gamma, tau, steps_per_episode
-    )
+    states = cached_targets['states']
+    actions = cached_targets['actions']
+    q_star = cached_targets['q_star']
+    v_star = cached_targets['v_star']
+    v_star_per_sample = cached_targets['v_star_per_sample']
+    num_episodes = cached_targets['num_episodes']
 
     # Load Q-network
-    q_checkpoint = torch.load(q_checkpoint_path, map_location=device)
+    q_checkpoint = torch.load(q_checkpoint_path, map_location=device, weights_only=False)
     q_config = q_checkpoint.get('config', config)
     q_net = QNet(q_config).to(device)
     q_net.load_state_dict(q_checkpoint['model_state_dict'])
     q_net.eval()
 
     # Load V-network
-    v_checkpoint = torch.load(v_checkpoint_path, map_location=device)
+    v_checkpoint = torch.load(v_checkpoint_path, map_location=device, weights_only=False)
     v_config = v_checkpoint.get('config', config)
     v_net = VNet(v_config).to(device)
     v_net.load_state_dict(v_checkpoint['model_state_dict'])
@@ -173,13 +169,17 @@ def analyze_single_checkpoint(
     q_error = q_model - q_star
     v_error = v_model - v_star_per_sample
 
+    # Compute Spearman rank correlation (ranking capability)
+    q_spearman_rho, q_spearman_p = spearmanr(q_model.flatten(), q_star.flatten())
+    v_spearman_rho, v_spearman_p = spearmanr(v_model.flatten(), v_star_per_sample.flatten())
+
     # Aggregate statistics by timestep
     timesteps = list(range(steps_per_episode))
-    
+
     q_model_means = q_model.mean(axis=0)
     v_model_means = v_model.mean(axis=0)
     q_star_means = q_star.mean(axis=0)
-    
+
     q_error_by_t = np.abs(q_error).mean(axis=0)  # MAE per timestep
     v_error_by_t = np.abs(v_error).mean(axis=0)  # MAE per timestep
 
@@ -193,13 +193,15 @@ def analyze_single_checkpoint(
         'v_error_by_t': v_error_by_t,
         'mae_q': np.mean(np.abs(q_error)),
         'mae_v': np.mean(np.abs(v_error)),
+        'spearman_q': q_spearman_rho,
+        'spearman_v': v_spearman_rho,
     }
 
 
 def create_checkpoint_plot(stats: dict, output_path: str, epoch: int, tau: float):
     """Creates a 2x2 plot for a single checkpoint."""
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle(f'Epoch {epoch} | MAE(Q)={stats["mae_q"]:.3f} | MAE(V)={stats["mae_v"]:.3f} | Exact Backward DP', 
+    fig.suptitle(f'Epoch {epoch} | ρ(Q)={stats["spearman_q"]:.3f} | ρ(V)={stats["spearman_v"]:.3f} | MAE(Q)={stats["mae_q"]:.3f}',
                  fontsize=14)
 
     timesteps = stats['timesteps']
@@ -256,52 +258,63 @@ def create_checkpoint_plot(stats: dict, output_path: str, epoch: int, tau: float
 
 
 def create_summary_plot(all_stats: list, output_path: str, tau: float):
-    """Creates a summary plot showing MAE evolution across epochs."""
+    """Creates a summary plot showing Spearman correlation and MAE evolution across epochs."""
     epochs = [s['epoch'] for s in all_stats]
     mae_q = [s['mae_q'] for s in all_stats]
     mae_v = [s['mae_v'] for s in all_stats]
-    
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    fig.suptitle(f'Model Error vs Exact Targets (τ={tau}, Backward DP)', fontsize=14)
+    spearman_q = [s['spearman_q'] for s in all_stats]
+    spearman_v = [s['spearman_v'] for s in all_stats]
 
-    # Left: MAE over epochs
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    fig.suptitle(f'Checkpoint Analysis (τ={tau}, Backward DP)', fontsize=14)
+
+    # Left: Spearman correlation over epochs (PRIMARY METRIC)
     ax1 = axes[0]
-    ax1.plot(epochs, mae_q, 'b-o', linewidth=2, markersize=4, label='MAE: Q vs Q*')
-    ax1.plot(epochs, mae_v, 'r-o', linewidth=2, markersize=4, label='MAE: V vs V*')
+    ax1.plot(epochs, spearman_q, 'b-o', linewidth=2, markersize=4, label='ρ(Q, Q*)')
+    ax1.plot(epochs, spearman_v, 'r-o', linewidth=2, markersize=4, label='ρ(V, V*)')
     ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Mean Absolute Error')
-    ax1.set_title('Error Evolution (Exact Backward DP Targets)')
+    ax1.set_ylabel('Spearman Correlation')
+    ax1.set_title('Ranking Capability (Higher = Better)')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
-    # Find best epoch
-    combined = [q + v for q, v in zip(mae_q, mae_v)]
-    best_idx = np.argmin(combined)
+    # Find best epoch by Spearman Q correlation (higher is better)
+    best_idx = np.argmax(spearman_q)
     best_epoch = epochs[best_idx]
-    ax1.axvline(best_epoch, color='green', linestyle='--', alpha=0.5)
+    ax1.axvline(best_epoch, color='green', linestyle='--', alpha=0.5, label=f'Best: Epoch {best_epoch}')
     ax1.legend()
 
-    # Right: Table
+    # Middle: MAE over epochs (secondary)
     ax2 = axes[1]
-    ax2.axis('off')
-    
-    sorted_stats = sorted(all_stats, key=lambda x: x['mae_q'] + x['mae_v'])
-    
+    ax2.plot(epochs, mae_q, 'b-o', linewidth=2, markersize=4, label='MAE(Q)')
+    ax2.plot(epochs, mae_v, 'r-o', linewidth=2, markersize=4, label='MAE(V)')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Mean Absolute Error')
+    ax2.set_title('Absolute Error (Lower = Better)')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    ax2.axvline(best_epoch, color='green', linestyle='--', alpha=0.5)
+
+    # Right: Table sorted by Spearman Q (descending)
+    ax3 = axes[2]
+    ax3.axis('off')
+
+    sorted_stats = sorted(all_stats, key=lambda x: x['spearman_q'], reverse=True)
+
     table_data = []
     for s in sorted_stats[:10]:
-        combined_err = s['mae_q'] + s['mae_v']
-        table_data.append([s['epoch'], f"{s['mae_q']:.4f}", f"{s['mae_v']:.4f}", f"{combined_err:.4f}"])
-    
-    table = ax2.table(
+        table_data.append([s['epoch'], f"{s['spearman_q']:.4f}", f"{s['spearman_v']:.4f}", f"{s['mae_q']:.4f}"])
+
+    table = ax3.table(
         cellText=table_data,
-        colLabels=['Epoch', 'MAE Q', 'MAE V', 'Combined'],
+        colLabels=['Epoch', 'ρ(Q)', 'ρ(V)', 'MAE(Q)'],
         loc='center',
         cellLoc='center'
     )
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1.2, 1.5)
-    ax2.set_title('Top 10 Epochs (Exact Backward DP)', pad=20)
+    ax3.set_title('Top 10 Epochs by Spearman ρ(Q)', pad=20)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -322,14 +335,22 @@ def main():
     gamma = config.get('iql', {}).get('gamma', 0.99)
     reward_scale = config.get('training', {}).get('reward_scale', 0.1)
 
+    # Get steps_per_episode from config (days_per_warehouse for continuing dataset)
+    steps_per_episode = config.get('environment', {}).get('days_per_warehouse', 30)
+
     checkpoint_dir = PROJECT_ROOT / "checkpoints" / args.experiment
-    dataset_path = PROJECT_ROOT / "data" / "inv_management_base_stock.pt"
+    dataset_path = PROJECT_ROOT / "data" / "inv_management_continuing.pt"
+
+    # Fallback to episodic dataset if continuing doesn't exist
+    if not dataset_path.exists():
+        dataset_path = PROJECT_ROOT / "data" / "inv_management_base_stock.pt"
+        steps_per_episode = 30  # Episodic dataset uses 30 steps
     
     output_dir = PROJECT_ROOT / "analysis" / "checkpoints_exact" / args.experiment
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Loading dataset: {dataset_path}")
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     
     q_checkpoint_dir = checkpoint_dir / "q_net"
     v_checkpoint_dir = checkpoint_dir / "v_net"
@@ -351,16 +372,50 @@ def main():
     
     print(f"Found {len(checkpoints)} checkpoint pairs")
     print(f"Using tau={tau}, gamma={gamma}, reward_scale={reward_scale}")
+    print(f"Steps per episode: {steps_per_episode}")
     print(f"Output directory: {output_dir}")
-    
+
+    # Pre-compute exact targets ONCE (instead of per checkpoint)
+    print("Computing exact Q*/V* targets (backward DP)...")
+    states = dataset['states']
+    actions = dataset['actions']
+    rewards_tensor = dataset['rewards'].flatten()
+    dones_tensor = dataset['dones'].flatten()
+
+    total_samples = len(states)
+    num_episodes = total_samples // steps_per_episode
+    truncated_samples = num_episodes * steps_per_episode
+
+    # Truncate to exact multiple
+    states = states[:truncated_samples]
+    actions = actions[:truncated_samples]
+
+    rewards = rewards_tensor.numpy()[:truncated_samples].reshape(num_episodes, steps_per_episode) * reward_scale
+    dones = dones_tensor.numpy()[:truncated_samples].reshape(num_episodes, steps_per_episode)
+
+    q_star, v_star, v_star_per_sample = compute_exact_q_v_backward(
+        rewards, dones, gamma, tau, steps_per_episode
+    )
+
+    cached_targets = {
+        'states': states,
+        'actions': actions,
+        'q_star': q_star,
+        'v_star': v_star,
+        'v_star_per_sample': v_star_per_sample,
+        'num_episodes': num_episodes
+    }
+    print(f"Cached targets computed: {num_episodes} episodes × {steps_per_episode} steps")
+
     all_stats = []
-    
+
     for epoch, q_path, v_path in checkpoints:
         print(f"Processing epoch {epoch}...")
-        
+
         stats = analyze_single_checkpoint(
-            q_path, v_path, dataset, config, device,
-            gamma=gamma, reward_scale=reward_scale, tau=tau
+            q_path, v_path, dataset, config, device, cached_targets,
+            gamma=gamma, reward_scale=reward_scale, tau=tau,
+            steps_per_episode=steps_per_episode
         )
         stats['epoch'] = epoch
         all_stats.append(stats)
@@ -372,34 +427,34 @@ def main():
         summary_path = output_dir / "summary.png"
         best_epoch = create_summary_plot(all_stats, str(summary_path), tau)
         print(f"\nSummary saved to: {summary_path}")
-        print(f"Best epoch (lowest combined error): {best_epoch}")
-        
+        print(f"Best epoch (highest Spearman ρ): {best_epoch}")
+
         summary_txt = output_dir / "summary.txt"
         with open(summary_txt, 'w') as f:
             f.write("=" * 70 + "\n")
-            f.write("CHECKPOINT ANALYSIS - EXACT BACKWARD DP TARGETS\n")
+            f.write("CHECKPOINT ANALYSIS - SPEARMAN RANK CORRELATION\n")
             f.write("=" * 70 + "\n\n")
             f.write(f"Experiment: {args.experiment}\n")
             f.write(f"Tau: {tau}\n")
             f.write(f"Gamma: {gamma}\n")
             f.write(f"Reward Scale: {reward_scale}\n")
-            f.write(f"Total checkpoints: {len(all_stats)}\n\n")
-            
+            f.write(f"Total checkpoints: {len(all_stats)}\n")
+            f.write(f"Best epoch: {best_epoch}\n\n")
+
             f.write("METHOD:\n")
             f.write("  Q*[t] = r[t] + γ × V*[t+1]  (backward from t=29 to t=0)\n")
             f.write("  V*[t] = τ-expectile of {Q*[t] over all episodes}\n")
-            f.write("  This is mathematically identical to how IQL trains.\n\n")
-            
+            f.write("  Selection: Spearman ρ(Q_model, Q*) - measures ranking capability\n\n")
+
             f.write("-" * 70 + "\n")
-            f.write("ALL EPOCHS (sorted by combined error)\n")
+            f.write("ALL EPOCHS (sorted by Spearman ρ(Q) - HIGHER IS BETTER)\n")
             f.write("-" * 70 + "\n")
-            f.write(f"{'Epoch':<10} {'MAE Q':<15} {'MAE V':<15} {'Combined':<15}\n")
+            f.write(f"{'Epoch':<10} {'ρ(Q)':<12} {'ρ(V)':<12} {'MAE Q':<12} {'MAE V':<12}\n")
             f.write("-" * 70 + "\n")
-            
-            for s in sorted(all_stats, key=lambda x: x['mae_q'] + x['mae_v']):
-                combined = s['mae_q'] + s['mae_v']
-                f.write(f"{s['epoch']:<10} {s['mae_q']:<15.4f} {s['mae_v']:<15.4f} {combined:<15.4f}\n")
-        
+
+            for s in sorted(all_stats, key=lambda x: x['spearman_q'], reverse=True):
+                f.write(f"{s['epoch']:<10} {s['spearman_q']:<12.4f} {s['spearman_v']:<12.4f} {s['mae_q']:<12.4f} {s['mae_v']:<12.4f}\n")
+
         print(f"Summary text saved to: {summary_txt}")
 
 

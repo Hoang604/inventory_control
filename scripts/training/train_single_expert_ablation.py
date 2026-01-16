@@ -64,7 +64,7 @@ def main():
     logger.info(f"Loading dataset from: {DATASET_PATH}")
 
     # Load dataset
-    dataset = torch.load(DATASET_PATH)
+    dataset = torch.load(DATASET_PATH, weights_only=False)
     states = dataset['states']
     actions = dataset['actions']
     rewards = dataset['rewards']

@@ -1,0 +1,594 @@
+======================================================================
+ADVANTAGE DISTRIBUTION DIAGNOSTIC - ALL CHECKPOINTS
+Experiment: inv_management_iql_minmax_run_11012026_231729
+Generated: 2026-01-11T23:31:52.049720
+======================================================================
+
+
+######################################################################
+CHECKPOINT: Epoch 4
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_4.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_4.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       1.9492 (Std: 1.0123)
+  V Mean:       0.8897 (Std: 0.2576)
+  Adv Mean:     1.0595 (Std: 0.8174)
+  Adv Median:   1.2207
+  Pos Adv Pct:  84.36% (3079/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.3045 |   0.4239 |  -0.7518
+     5%:  -0.0489 |   0.4679 |  -0.5253
+    25%:   1.4645 |   0.7062 |   0.6895
+    50%:   2.1681 |   0.8816 |   1.2207
+    75%:   2.6910 |   1.1488 |   1.6652
+    95%:   3.2485 |   1.2505 |   2.1471
+    99%:   3.5862 |   1.3286 |   2.5526
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 9
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_9.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_9.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       2.4472 (Std: 1.2427)
+  V Mean:       1.1046 (Std: 0.4118)
+  Adv Mean:     1.3426 (Std: 0.8728)
+  Adv Median:   1.5493
+  Pos Adv Pct:  87.89% (3208/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.3063 |   0.2481 |  -0.6124
+     5%:  -0.0030 |   0.3486 |  -0.3530
+    25%:   1.7727 |   0.8512 |   0.8630
+    50%:   2.7280 |   1.1988 |   1.5493
+    75%:   3.4109 |   1.4065 |   2.0218
+    95%:   3.9643 |   1.6696 |   2.4544
+    99%:   4.2304 |   1.8100 |   2.7035
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 14
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_14.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_14.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       2.5822 (Std: 1.3740)
+  V Mean:       1.3953 (Std: 0.5821)
+  Adv Mean:     1.1869 (Std: 0.8368)
+  Adv Median:   1.3647
+  Pos Adv Pct:  85.56% (3123/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.3475 |   0.1640 |  -0.5864
+     5%:  -0.0378 |   0.3066 |  -0.3653
+    25%:   1.8355 |   1.0480 |   0.6947
+    50%:   2.8616 |   1.5203 |   1.3647
+    75%:   3.6559 |   1.8166 |   1.8458
+    95%:   4.3386 |   2.1908 |   2.2885
+    99%:   4.6339 |   2.3575 |   2.5546
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 19
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_19.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_19.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       2.5452 (Std: 1.4777)
+  V Mean:       1.5756 (Std: 0.7601)
+  Adv Mean:     0.9696 (Std: 0.7923)
+  Adv Median:   1.0920
+  Pos Adv Pct:  82.11% (2997/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.4961 |  -0.0061 |  -0.6279
+     5%:  -0.1810 |   0.1610 |  -0.3973
+    25%:   1.6272 |   1.1178 |   0.3848
+    50%:   2.8293 |   1.7236 |   1.0920
+    75%:   3.7173 |   2.1431 |   1.5922
+    95%:   4.4874 |   2.6045 |   2.1023
+    99%:   4.7984 |   2.8076 |   2.3693
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 24
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_24.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_24.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       2.7775 (Std: 1.8684)
+  V Mean:       1.7672 (Std: 0.9133)
+  Adv Mean:     1.0103 (Std: 1.0037)
+  Adv Median:   1.2202
+  Pos Adv Pct:  78.74% (2874/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.9988 |  -0.1268 |  -1.0119
+     5%:  -0.6730 |   0.0572 |  -0.7669
+    25%:   1.6626 |   1.2206 |   0.3959
+    50%:   3.1972 |   1.9569 |   1.2202
+    75%:   4.1962 |   2.4579 |   1.7685
+    95%:   5.2209 |   2.9709 |   2.4126
+    99%:   5.5704 |   3.1918 |   2.6350
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 29
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_29.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_29.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       2.8993 (Std: 1.9661)
+  V Mean:       1.9816 (Std: 1.0449)
+  Adv Mean:     0.9177 (Std: 0.9778)
+  Adv Median:   1.1042
+  Pos Adv Pct:  76.90% (2807/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.0090 |  -0.1684 |  -1.0609
+     5%:  -0.6588 |   0.0389 |  -0.7675
+    25%:   1.5972 |   1.3631 |   0.1463
+    50%:   3.3095 |   2.1949 |   1.1042
+    75%:   4.4119 |   2.7675 |   1.6609
+    95%:   5.4994 |   3.3680 |   2.3126
+    99%:   5.8616 |   3.6224 |   2.5654
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 34
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_34.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_34.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       3.1858 (Std: 1.9334)
+  V Mean:       2.2109 (Std: 1.1594)
+  Adv Mean:     0.9749 (Std: 0.8401)
+  Adv Median:   1.1257
+  Pos Adv Pct:  79.95% (2918/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.7675 |  -0.1954 |  -0.8232
+     5%:  -0.3834 |   0.0385 |  -0.4898
+    25%:   1.9665 |   1.5268 |   0.3349
+    50%:   3.6226 |   2.4616 |   1.1257
+    75%:   4.6703 |   3.1011 |   1.6066
+    95%:   5.6982 |   3.7381 |   2.1515
+    99%:   6.0824 |   3.9900 |   2.3790
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 39
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_39.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_39.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       3.2306 (Std: 2.1604)
+  V Mean:       2.3951 (Std: 1.3517)
+  Adv Mean:     0.8355 (Std: 0.8754)
+  Adv Median:   0.9378
+  Pos Adv Pct:  77.70% (2836/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.0592 |  -0.3870 |  -0.9786
+     5%:  -0.6817 |  -0.1513 |  -0.6381
+    25%:   1.8725 |   1.6010 |   0.2021
+    50%:   3.7102 |   2.6967 |   0.9378
+    75%:   4.8509 |   3.4405 |   1.4693
+    95%:   6.1199 |   4.1146 |   2.1709
+    99%:   6.4747 |   4.3828 |   2.4315
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 44
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_44.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_44.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       3.5148 (Std: 2.3325)
+  V Mean:       2.4761 (Std: 1.4907)
+  Adv Mean:     1.0387 (Std: 0.9064)
+  Adv Median:   1.2170
+  Pos Adv Pct:  79.97% (2919/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.1812 |  -0.5383 |  -0.8870
+     5%:  -0.7867 |  -0.3120 |  -0.5730
+    25%:   2.1175 |   1.5805 |   0.4246
+    50%:   4.1006 |   2.8337 |   1.2170
+    75%:   5.3034 |   3.6206 |   1.7294
+    95%:   6.4553 |   4.3904 |   2.2623
+    99%:   6.8136 |   4.6838 |   2.5299
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 49
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_49.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_49.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       3.7883 (Std: 2.2730)
+  V Mean:       2.8000 (Std: 1.5765)
+  Adv Mean:     0.9883 (Std: 0.7769)
+  Adv Median:   1.1088
+  Pos Adv Pct:  83.92% (3063/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -0.7998 |  -0.4277 |  -0.6888
+     5%:  -0.3725 |  -0.1624 |  -0.3221
+    25%:   2.3275 |   1.8439 |   0.3841
+    50%:   4.3007 |   3.1781 |   1.1088
+    75%:   5.5730 |   4.0166 |   1.5764
+    95%:   6.7030 |   4.8092 |   2.1169
+    99%:   7.0674 |   5.1463 |   2.3679
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 54
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_54.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_54.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       3.8636 (Std: 2.4189)
+  V Mean:       2.8793 (Std: 1.7406)
+  Adv Mean:     0.9843 (Std: 0.7853)
+  Adv Median:   1.1417
+  Pos Adv Pct:  84.90% (3099/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.0290 |  -0.6091 |  -0.8205
+     5%:  -0.5898 |  -0.3675 |  -0.3955
+    25%:   2.3065 |   1.8574 |   0.3493
+    50%:   4.4927 |   3.3046 |   1.1417
+    75%:   5.7581 |   4.2005 |   1.6047
+    95%:   6.8522 |   5.1110 |   2.0334
+    99%:   7.2446 |   5.4707 |   2.3437
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 59
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_59.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_59.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       3.9999 (Std: 2.7102)
+  V Mean:       3.0565 (Std: 1.8308)
+  Adv Mean:     0.9433 (Std: 0.9527)
+  Adv Median:   1.1604
+  Pos Adv Pct:  77.15% (2816/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.3307 |  -0.6263 |  -1.0251
+     5%:  -0.9161 |  -0.3579 |  -0.6695
+    25%:   2.2057 |   1.9553 |   0.1606
+    50%:   4.6391 |   3.4918 |   1.1604
+    75%:   6.1239 |   4.4585 |   1.7075
+    95%:   7.3635 |   5.3941 |   2.2129
+    99%:   7.7472 |   5.7687 |   2.4091
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 64
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_64.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_64.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.1003 (Std: 2.7569)
+  V Mean:       3.2055 (Std: 1.9763)
+  Adv Mean:     0.8948 (Std: 0.8672)
+  Adv Median:   1.0926
+  Pos Adv Pct:  77.86% (2842/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.4181 |  -0.7500 |  -1.0361
+     5%:  -0.9356 |  -0.4729 |  -0.6154
+    25%:   2.2654 |   2.0275 |   0.1776
+    50%:   4.7917 |   3.6925 |   1.0926
+    75%:   6.2629 |   4.7212 |   1.5680
+    95%:   7.5265 |   5.7113 |   2.0594
+    99%:   7.9174 |   6.0926 |   2.2782
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 69
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_69.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_69.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.2258 (Std: 2.8568)
+  V Mean:       3.2862 (Std: 2.1413)
+  Adv Mean:     0.9396 (Std: 0.8078)
+  Adv Median:   1.0792
+  Pos Adv Pct:  81.21% (2964/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.4178 |  -0.9935 |  -0.8789
+     5%:  -0.9585 |  -0.6944 |  -0.4321
+    25%:   2.3006 |   2.0042 |   0.2771
+    50%:   4.9591 |   3.8333 |   1.0792
+    75%:   6.4616 |   4.9390 |   1.5585
+    95%:   7.7742 |   5.9374 |   2.0681
+    99%:   8.2049 |   6.3225 |   2.2986
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 74
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_74.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_74.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.3281 (Std: 2.9467)
+  V Mean:       3.4545 (Std: 2.2299)
+  Adv Mean:     0.8736 (Std: 0.8176)
+  Adv Median:   1.0514
+  Pos Adv Pct:  78.93% (2881/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.4971 |  -0.9853 |  -0.9543
+     5%:  -1.0159 |  -0.6659 |  -0.5136
+    25%:   2.2721 |   2.0923 |   0.1715
+    50%:   5.0751 |   4.0239 |   1.0514
+    75%:   6.6550 |   5.1693 |   1.5165
+    95%:   7.9696 |   6.2525 |   1.9950
+    99%:   8.3993 |   6.6349 |   2.2313
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 79
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_79.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_79.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.5181 (Std: 3.0612)
+  V Mean:       3.6125 (Std: 2.3215)
+  Adv Mean:     0.9056 (Std: 0.8405)
+  Adv Median:   1.0860
+  Pos Adv Pct:  78.96% (2882/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.5194 |  -0.9994 |  -0.9683
+     5%:  -1.0405 |  -0.6675 |  -0.5204
+    25%:   2.3583 |   2.1763 |   0.2062
+    50%:   5.2781 |   4.2103 |   1.0860
+    75%:   6.9411 |   5.4104 |   1.5600
+    95%:   8.2817 |   6.5202 |   2.0586
+    99%:   8.7096 |   6.9014 |   2.2616
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 84
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_84.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_84.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.6358 (Std: 3.1849)
+  V Mean:       3.7442 (Std: 2.4494)
+  Adv Mean:     0.8916 (Std: 0.8429)
+  Adv Median:   1.0965
+  Pos Adv Pct:  78.71% (2873/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.6549 |  -1.1187 |  -0.9976
+     5%:  -1.1447 |  -0.7678 |  -0.5644
+    25%:   2.3079 |   2.2096 |   0.1649
+    50%:   5.4640 |   4.3628 |   1.0965
+    75%:   7.1627 |   5.6535 |   1.5522
+    95%:   8.5432 |   6.8076 |   2.0297
+    99%:   8.9745 |   7.1929 |   2.2334
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 89
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_89.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_89.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.7532 (Std: 3.2476)
+  V Mean:       3.8947 (Std: 2.5584)
+  Adv Mean:     0.8586 (Std: 0.8030)
+  Adv Median:   1.0382
+  Pos Adv Pct:  80.00% (2920/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.6867 |  -1.1824 |  -0.9852
+     5%:  -1.1422 |  -0.8180 |  -0.5366
+    25%:   2.3616 |   2.2202 |   0.1691
+    50%:   5.5936 |   4.5551 |   1.0382
+    75%:   7.3434 |   5.8911 |   1.4999
+    95%:   8.7217 |   7.0665 |   1.9407
+    99%:   9.1528 |   7.4483 |   2.1542
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 94
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_94.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_94.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.8600 (Std: 3.3424)
+  V Mean:       4.0346 (Std: 2.6504)
+  Adv Mean:     0.8254 (Std: 0.8071)
+  Adv Median:   1.0050
+  Pos Adv Pct:  78.79% (2876/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.7641 |  -1.2275 |  -1.0381
+     5%:  -1.1981 |  -0.8430 |  -0.5851
+    25%:   2.4064 |   2.2779 |   0.1335
+    50%:   5.7206 |   4.7215 |   1.0050
+    75%:   7.5194 |   6.1112 |   1.4715
+    95%:   8.9328 |   7.2961 |   1.9206
+    99%:   9.3529 |   7.6782 |   2.1134
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Epoch 99
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/checkpoint_epoch_99.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/checkpoint_epoch_99.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.9340 (Std: 3.3663)
+  V Mean:       4.1256 (Std: 2.7049)
+  Adv Mean:     0.8084 (Std: 0.7800)
+  Adv Median:   0.9760
+  Pos Adv Pct:  79.78% (2912/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.7466 |  -1.2469 |  -1.0263
+     5%:  -1.1696 |  -0.8489 |  -0.5576
+    25%:   2.4331 |   2.3124 |   0.1417
+    50%:   5.8050 |   4.8449 |   0.9760
+    75%:   7.6204 |   6.2498 |   1.4330
+    95%:   9.0273 |   7.4368 |   1.8642
+    99%:   9.4450 |   7.8134 |   2.0587
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.
+
+######################################################################
+CHECKPOINT: Best Loss
+######################################################################
+  Q-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/q_net/best_loss.pth
+  V-Net: /home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_11012026_231729/v_net/best_loss.pth
+
+------------------------------
+STATISTICS SUMMARY
+------------------------------
+  Reward Mean:  11.4930
+  Q Mean:       4.5181 (Std: 3.0612)
+  V Mean:       3.6125 (Std: 2.3215)
+  Adv Mean:     0.9056 (Std: 0.8405)
+  Adv Median:   1.0860
+  Pos Adv Pct:  78.96% (2882/3650)
+
+  Percentiles (Q | V | Adv):
+     1%:  -1.5194 |  -0.9994 |  -0.9683
+     5%:  -1.0405 |  -0.6675 |  -0.5204
+    25%:   2.3583 |   2.1763 |   0.2062
+    50%:   5.2781 |   4.2103 |   1.0860
+    75%:   6.9411 |   5.4104 |   1.5600
+    95%:   8.2817 |   6.5202 |   2.0586
+    99%:   8.7096 |   6.9014 |   2.2616
+
+  Diagnosis:
+    [WARNING] High positive advantage (>50%). V may be underestimating.

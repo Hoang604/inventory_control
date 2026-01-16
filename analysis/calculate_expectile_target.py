@@ -53,7 +53,7 @@ def main():
 
     print(f"Loading {dataset_path}...")
     try:
-        dataset = torch.load(dataset_path)
+        dataset = torch.load(dataset_path, weights_only=False)
         rewards_tensor = dataset['rewards'].flatten()
     except Exception as e:
         print(f"Error: {e}")

@@ -57,7 +57,7 @@ def analyze_gt_by_timestep(
         reward_scale: Reward scaling factor used during training.
     """
     # Load dataset
-    dataset = torch.load(dataset_path)
+    dataset = torch.load(dataset_path, weights_only=False)
     rewards_tensor = dataset['rewards'].flatten()
     
     total_samples = len(rewards_tensor)

@@ -314,10 +314,10 @@ class IQLAgent:
             tuple: A tuple containing (mean_loss, entropy_mean, adv_mean).
         """
         with torch.no_grad():
-            target_net_ouput: torch.Tensor = self.target_q_net(
+            target_net_output: torch.Tensor = self.target_q_net(
                 state_batch, action_batch)
             v_net_output: torch.Tensor = self.v_net(state_batch)
-            advantage = target_net_ouput - v_net_output
+            advantage = target_net_output - v_net_output
             adv_mean = advantage.mean().item()
 
             if batch_step % self.log_interval == 0:
@@ -448,8 +448,10 @@ class IQLAgent:
             _, _ = self._load_model(
                 model_name='q_net', file_path=resume_q_path)
 
-        # Use Spearman correlation for best model selection (higher is better)
-        best_spearman_q = -torch.inf
+        # Use a combined metric for best model selection: Spearman correlation (higher is better)
+        # but also consider Q-loss (lower is better) to ensure value accuracy.
+        # We want a model that ranks well AND has converged values.
+        best_combined_score = -torch.inf
         steps_per_episode = self.config.get('environment', {}).get('days_per_warehouse', 30)
         cached_spearman_targets = None  # Will be computed once on first epoch
 
@@ -555,14 +557,18 @@ class IQLAgent:
                 'lr': current_lr
             })
 
-            # Save best model based on Spearman correlation (higher is better)
-            if spearman_q > best_spearman_q:
-                best_spearman_q = spearman_q
+            # Combined score: prioritize Spearman but penalize high loss
+            # This prevents saving "best" models early in training when loss is still high
+            # but ranking might be coincidentally okay.
+            combined_score = spearman_q - val_q_loss
+
+            if combined_score > best_combined_score:
+                best_combined_score = combined_score
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='q_net', loss=spearman_q)
+                    epoch, save_best_loss=True, model_name='q_net', loss=val_q_loss)
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='v_net', loss=spearman_v)
-                tqdm.write(f"  -> New best model saved! ρ(Q)={spearman_q:.4f}")
+                    epoch, save_best_loss=True, model_name='v_net', loss=val_v_loss)
+                tqdm.write(f"  -> New best model saved! Score={combined_score:.4f} (ρ={spearman_q:.4f}, Loss={val_q_loss:.4f})")
 
             if (epoch + 1) % self.checkpoint_interval == 0:
                 self._save_checkpoint(
@@ -578,7 +584,7 @@ class IQLAgent:
             _, _ = self._load_model(
                 model_name='actor', file_path=resume_training_path)
 
-        best_actor_q_mean = -torch.inf
+        best_actor_loss = torch.inf
         start_epoch = 0
 
         global_step = 0
@@ -638,10 +644,11 @@ class IQLAgent:
                 'lr': current_lr
             })
 
-            if val_actor_q_mean > best_actor_q_mean:
-                best_actor_q_mean = val_actor_q_mean
+            if val_actor_loss < best_actor_loss:
+                best_actor_loss = val_actor_loss
                 self._save_checkpoint(
-                    epoch, save_best_loss=True, model_name='actor', loss=best_actor_q_mean)
+                    epoch, save_best_loss=True, model_name='actor', loss=val_actor_loss)
+                tqdm.write(f"  -> New best actor saved! Loss={val_actor_loss:.4f}")
 
             if (epoch + 1) % self.checkpoint_interval == 0:
                 self._save_checkpoint(
@@ -780,7 +787,7 @@ class IQLAgent:
         Loads a single model and its optimizer state from a file.
 
         Args:
-            model_name (str): The name of the model to load ('actor', 'q_net', 'v_net').
+            model_name (str): The name of the model to load ('actor', 'q_net', or 'v_net').
             file_path (str): The full path to the checkpoint file.
 
         Returns:

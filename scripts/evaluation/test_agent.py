@@ -88,7 +88,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    checkpoint_path = "/home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_12012026_143429/actor/checkpoint_epoch_99.pth"
+    checkpoint_path = "/home/hoang/python/inventory_control/checkpoints/inv_management_iql_minmax_run_18022026_190530/actor/best_loss.pth"
     if os.path.exists(checkpoint_path):
         print(f"Loading trained agent from: {checkpoint_path}")
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -113,7 +113,7 @@ def main():
 
     NUM_TEST_EPISODES = 100
 
-    target_levels = np.array([80, 180, 40])
+    target_levels = np.array([70, 170, 15])
     base_stock_policy = BaseStockPolicy(env, z=target_levels)
 
     print(

@@ -23,35 +23,43 @@ torch.autograd.set_detect_anomaly(True)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-# Available datasets with their properties
+# Available datasets based on files in data/ folder
 DATASETS = {
     "basestock": {
         "path": "data/inv_management_basestock.pt",
-        "description": "Base-Stock policy (profit: 346)",
+        "description": "Base-Stock policy",
+    },
+    "base_stock_alt": {
+        "path": "data/inv_management_base_stock.pt",
+        "description": "Base-Stock policy (alt name)",
     },
     "minmax": {
         "path": "data/inv_management_minmax.pt",
-        "description": "Min-Max (s,S) policy (profit: 350)",
+        "description": "Min-Max (s,S) policy",
     },
     "lotforlot": {
         "path": "data/inv_management_lotforlot.pt",
-        "description": "Lot-for-Lot policy (profit: 351)",
+        "description": "Lot-for-Lot policy",
     },
     "periodic": {
         "path": "data/inv_management_periodic.pt",
-        "description": "Periodic Review (T,S) policy (profit: 364)",
+        "description": "Periodic Review (T,S) policy",
     },
     "rq": {
         "path": "data/inv_management_rq.pt",
-        "description": "(R,Q) Fixed Quantity policy (profit: 431)",
+        "description": "(R,Q) Fixed Quantity policy",
     },
     "noisy": {
         "path": "data/inv_management_noisy.pt",
-        "description": "Noisy Base-Stock policy (profit: 364)",
+        "description": "Noisy Base-Stock policy",
     },
     "multi_policy": {
         "path": "data/inv_management_multi_policy.pt",
         "description": "Mixed dataset from all policies",
+    },
+    "continuing": {
+        "path": "data/inv_management_continuing.pt",
+        "description": "Continuing policy dataset",
     },
 }
 
@@ -106,15 +114,10 @@ def split_by_episodes(states, actions, rewards, next_states, dones,
 def find_latest_experiment_path(experiment_name: str, checkpoints_root: Path) -> Path:
     """
     Finds the latest experiment folder matching 'experiment_name_*'.
-    
-    Returns:
-        Path to the folder if found, else None.
     """
     if not checkpoints_root.exists():
         return None
         
-    # Pattern: EXP_NAME_DDMMYYYY_HHMMSS
-    # We look for folders starting with experiment_name
     candidates = []
     for item in checkpoints_root.iterdir():
         if item.is_dir() and item.name.startswith(experiment_name):
@@ -123,11 +126,7 @@ def find_latest_experiment_path(experiment_name: str, checkpoints_root: Path) ->
     if not candidates:
         return None
         
-    # Sort by modification time (or name which contains timestamp)
-    # Timestamp format is DayMonthYear... so string sort might be wrong if crossing months/years without care
-    # But usually just taking the one with latest mtime is safest for "latest run"
     candidates.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-    
     return candidates[0]
 
 
@@ -165,7 +164,6 @@ def run_single_experiment(experiment_name: str, dataset_name: str, config_overri
     dataset_path = PROJECT_ROOT / DATASETS[dataset_name]['path']
     if not dataset_path.exists():
         logger.error(f"Dataset not found: {dataset_path}")
-        logger.info(f"Run: python3 scripts/data_generation/generate_{dataset_name}_dataset.py")
         return None
 
     dataset = torch.load(dataset_path, weights_only=False)
@@ -223,51 +221,22 @@ def run_single_experiment(experiment_name: str, dataset_name: str, config_overri
     base_logging_path = base_path / "logs"
     base_checkpoint_path = base_path / "checkpoints"
 
-    # Check for existing checkpoints to resume from
-    existing_ckpt_path = find_latest_experiment_path(experiment_name, base_checkpoint_path)
-    resume_mode = False
-    
-    if existing_ckpt_path:
-        # Check if Q/V nets are trained
-        best_q = existing_ckpt_path / "q_net" / "best_loss.pth"
-        best_v = existing_ckpt_path / "v_net" / "best_loss.pth"
-        
-        if best_q.exists() and best_v.exists():
-            logger.info(f"Found existing checkpoint at {existing_ckpt_path}")
-            logger.info("Resuming experiment: SKIPPING Q/V training and reusing weights.")
-            
-            agent.checkpoint_path = existing_ckpt_path
-            # Log to the same folder or new? 
-            # Reusing same log folder might append weirdly, but keeps things together.
-            # Let's use the existing log path matching the checkpoint folder name
-            agent.log_path = base_logging_path / existing_ckpt_path.name
-            agent.writer = agent.writer = torch.utils.tensorboard.SummaryWriter(log_dir=agent.log_path)
-            
-            resume_mode = True
-        else:
-            logger.info(f"Found checkpoint at {existing_ckpt_path} but Q/V weights missing. Starting fresh.")
+    agent._create_new_experimental(
+        experimental_name=experiment_name,
+        base_logging_path=str(base_logging_path),
+        base_checkpoint_path=str(base_checkpoint_path)
+    )
 
-    if not resume_mode:
-        agent._create_new_experimental(
-            experimental_name=experiment_name,
-            base_logging_path=str(base_logging_path),
-            base_checkpoint_path=str(base_checkpoint_path)
-        )
-
-        # Train Q/V networks
-        logger.info(f"Training Q/V networks for {epochs} epochs...")
-        q_v_metrics = agent.train_q_and_v(
-            dataloader=train_dataloader,
-            val_dataloader=val_dataloader,
-            epochs=epochs,
-            resume_v_path=None,
-            resume_q_path=None
-        )
-        agent.export_diagnostics(q_v_metrics, [], file_path="training_diagnostics_qv.csv")
-    else:
-        # If resuming, load the weights explicitly
-        # agent.checkpoint_path is already set above
-        pass
+    # Train Q/V networks
+    logger.info(f"Training Q/V networks for {epochs} epochs...")
+    q_v_metrics = agent.train_q_and_v(
+        dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
+        epochs=epochs,
+        resume_v_path=None,
+        resume_q_path=None
+    )
+    agent.export_diagnostics(q_v_metrics, [], file_path="training_diagnostics_qv.csv")
 
     # Load best checkpoints
     best_q_path = agent.checkpoint_path / "q_net" / "best_loss.pth"
@@ -294,36 +263,29 @@ def run_single_experiment(experiment_name: str, dataset_name: str, config_overri
 
 
 def main():
-    """Run experiments on all available datasets."""
+    """
+    Run Tau Sweep experiments on the basestock dataset.
+    """
+    tau_values = [0.5, 0.6, 0.7, 0.8, 0.9]
+    dataset_key = "basestock"
     
-    # Define experiments: one per dataset
-    experiments = [
-        {"name": "EXP_BASESTOCK", "dataset": "basestock"},
-        {"name": "EXP_MINMAX", "dataset": "minmax"},
-        {"name": "EXP_LOTFORLOT", "dataset": "lotforlot"},
-        {"name": "EXP_PERIODIC", "dataset": "periodic"},
-        {"name": "EXP_RQ", "dataset": "rq"},
-        {"name": "EXP_NOISY", "dataset": "noisy"},
-        {"name": "EXP_MULTI_POLICY", "dataset": "multi_policy"},
-    ]
+    if dataset_key not in DATASETS:
+        logger.error(f"Dataset {dataset_key} not found in DATASETS mapping.")
+        return
 
-    # Check which datasets exist
-    available_experiments = []
-    for exp in experiments:
-        dataset_path = PROJECT_ROOT / DATASETS[exp["dataset"]]["path"]
-        if dataset_path.exists():
-            available_experiments.append(exp)
-        else:
-            logger.warning(f"Skipping {exp['name']}: dataset not found at {dataset_path}")
+    logger.info(f"Starting Tau Sweep on {dataset_key} dataset...")
+    logger.info(f"Tau values: {tau_values}")
 
-    logger.info(f"Running {len(available_experiments)} experiments")
-
-    for i, exp in enumerate(available_experiments):
-        logger.info(f"\n[{i+1}/{len(available_experiments)}] {exp['name']}")
+    for tau in tau_values:
+        exp_name = f"TAU_SWEEP_{int(tau*100)}"
+        overrides = {
+            'iql': {'tau': tau}
+        }
+        
         try:
-            run_single_experiment(exp["name"], exp["dataset"])
+            run_single_experiment(exp_name, dataset_key, config_overrides=overrides)
         except Exception as e:
-            logger.error(f"Experiment {exp['name']} FAILED: {e}")
+            logger.error(f"Tau Sweep for tau={tau} FAILED: {e}")
             import traceback
             traceback.print_exc()
             continue

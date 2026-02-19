@@ -10,16 +10,16 @@ iql:
   learning_rate: 1e-4
   actor_learning_rate: 1e-5
   eta_min: 1e-7
-  tau: 0.8
+  tau: 0.7
   gamma: 0.95
   alpha: 0.005
-  beta: 1.0
+  beta: 10.0
 environment:
   num_warehouses: 10
   days_per_warehouse: 3650
 dataset:
-  # Available: "continuing", "base_stock", "single_expert", "multi_policy"
-  name: "multi_policy"
+  # Available: "continuing", "basestock", "single_expert", "multi_policy"
+  name: "basestock"
   # Optional: override with explicit path (if set, 'name' is ignored)
   # path: "data/custom_dataset.pt"
 training:

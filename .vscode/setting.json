@@ -1,0 +1,4 @@
+{
+    "python.defaultLanguageServer": "Pylance",
+    "python.languageServer": "Pylance"
+}

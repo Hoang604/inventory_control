@@ -1,10 +1,11 @@
-"""
-Advantage Distribution Diagnostic - All Checkpoints
+"""Advantage Distribution Diagnostic - All Checkpoints
 
 Loads trained Q-net and V-net checkpoints and analyzes the advantage distribution
-across the dataset to diagnose training issues for ALL checkpoints in the experiment.
+across the dataset to diagnose training issues for specific checkpoints.
 
-Output: analysis/advantage_diagnostic_<experiment>.txt
+Output: 
+- analysis/advantage_diagnostic_<experiment>.txt
+- analysis/advantage_evolution_<experiment>.png
 """
 import torch
 import numpy as np
@@ -12,9 +13,11 @@ from pathlib import Path
 from datetime import datetime
 import re
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
 
 def diagnose_advantage(
     q_checkpoint_path: str,
@@ -22,10 +25,10 @@ def diagnose_advantage(
     dataset_path: str,
     output_file: str,
     checkpoint_name: str
-) -> None:
+) -> dict:
     """
     Loads Q and V networks, computes advantage over the dataset, and APPENDS
-    diagnostic information to a file.
+    diagnostic information to a file. Returns metrics for plotting.
     """
     import sys
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -35,36 +38,30 @@ def diagnose_advantage(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # helper to load config safely
     def get_config_from_checkpoint(ckpt_path):
         ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
         return ckpt.get('config')
 
     # Load dataset
-    # We load it once in main usually, but here for simplicity we load inside or 
-    # we could refactor to pass it in. To keep signature similar/easy:
     if isinstance(dataset_path, str):
         dataset = torch.load(dataset_path, weights_only=False)
     else:
-        dataset = dataset_path # assume it's already loaded tensor dict
+        dataset = dataset_path
 
     states = dataset['states'].to(device)
     actions = dataset['actions'].to(device)
     rewards = dataset['rewards'].to(device)
 
-    # Load config from checkpoint to ensure we use correct model params
-    # Fallback to default if not in checkpoint
     ckpt_config = get_config_from_checkpoint(q_checkpoint_path)
     if not ckpt_config:
         ckpt_config = load_config()
 
-    # Load Q-network
+    # Load networks
     q_checkpoint = torch.load(q_checkpoint_path, map_location=device, weights_only=False)
     q_net = QNet(ckpt_config).to(device)
     q_net.load_state_dict(q_checkpoint['model_state_dict'])
     q_net.eval()
 
-    # Load V-network
     v_checkpoint = torch.load(v_checkpoint_path, map_location=device, weights_only=False)
     v_net = VNet(ckpt_config).to(device)
     v_net.load_state_dict(v_checkpoint['model_state_dict'])
@@ -72,162 +69,146 @@ def diagnose_advantage(
 
     # Compute Q, V, and Advantage
     with torch.no_grad():
-        batch_size = 4096 # Larger batch for inference
-        all_q = []
-        all_v = []
-        all_adv = []
+        batch_size = 4096
+        all_q, all_v, all_adv = [], [], []
 
         for i in range(0, len(states), batch_size):
-            s = states[i:i+batch_size]
-            a = actions[i:i+batch_size]
-
-            q_val = q_net(s, a)
-            v_val = v_net(s)
+            s, a = states[i:i+batch_size], actions[i:i+batch_size]
+            q_val, v_val = q_net(s, a), v_net(s)
             adv = q_val - v_val
+            all_q.append(q_val.cpu()); all_v.append(v_val.cpu()); all_adv.append(adv.cpu())
 
-            all_q.append(q_val.cpu())
-            all_v.append(v_val.cpu())
-            all_adv.append(adv.cpu())
-
-        q_values = torch.cat(all_q).numpy().flatten()
-        v_values = torch.cat(all_v).numpy().flatten()
         advantages = torch.cat(all_adv).numpy().flatten()
         rewards_np = rewards.cpu().numpy().flatten()
 
-    # Compute statistics
-    positive_adv_count = (advantages > 0).sum()
-    positive_adv_pct = positive_adv_count / len(advantages) * 100
+    # Normality Analysis
+    adv_mean, adv_std = advantages.mean(), advantages.std()
+    adv_skew, adv_kurt = stats.skew(advantages), stats.kurtosis(advantages)
+    ks_stat, _ = stats.kstest(advantages, 'norm', args=(adv_mean, adv_std))
 
-    # Write diagnostics to file (APPEND mode)
+    # Weight Analysis
+    beta = ckpt_config['iql'].get('beta', 1.0)
+    adv_clip = ckpt_config['training'].get('adv_weight_clip', 100.0)
+    weights = np.exp(beta * advantages)
+    weights = np.clip(weights, a_min=None, a_max=adv_clip)
+    
+    # ESS
+    ess = (np.sum(weights)**2) / np.sum(weights**2)
+    ess_pct = (ess / len(weights)) * 100
+    
+    positive_adv_pct = (advantages > 0).sum() / len(advantages) * 100
+
+    # Write to file
     with open(output_file, 'a') as f:
-        f.write("\n" + "#" * 70 + "\n")
-        f.write(f"CHECKPOINT: {checkpoint_name}\n")
-        f.write("#" * 70 + "\n")
-        f.write(f"  Q-Net: {q_checkpoint_path}\n")
-        f.write(f"  V-Net: {v_checkpoint_path}\n\n")
+        f.write(f"\n{'#'*70}\nCHECKPOINT: {checkpoint_name}\n{'#'*70}\n")
+        f.write(f"  Adv Mean: {adv_mean:.4f} (Std: {adv_std:.4f})\n")
+        f.write(f"  Normality: KS-Stat={ks_stat:.4f}, Skew={adv_skew:.4f}\n")
+        f.write(f"  ESS: {ess:.2f} ({ess_pct:.2f}%)\n")
 
-        f.write("-" * 30 + "\n")
-        f.write("STATISTICS SUMMARY\n")
-        f.write("-" * 30 + "\n")
-        f.write(f"  Reward Mean:  {rewards_np.mean():.4f}\n")
-        f.write(f"  Q Mean:       {q_values.mean():.4f} (Std: {q_values.std():.4f})\n")
-        f.write(f"  V Mean:       {v_values.mean():.4f} (Std: {v_values.std():.4f})\n")
-        f.write(f"  Adv Mean:     {advantages.mean():.4f} (Std: {advantages.std():.4f})\n")
-        f.write(f"  Adv Median:   {np.median(advantages):.4f}\n")
-        f.write(f"  Pos Adv Pct:  {positive_adv_pct:.2f}% ({positive_adv_count}/{len(advantages)})\n")
-
-        f.write("\n  Percentiles (Q | V | Adv):\n")
-        percentiles = [1, 5, 25, 50, 75, 95, 99]
-        for p in percentiles:
-            q_p = np.percentile(q_values, p)
-            v_p = np.percentile(v_values, p)
-            a_p = np.percentile(advantages, p)
-            f.write(f"    {p:2d}%: {q_p:8.4f} | {v_p:8.4f} | {a_p:8.4f}\n")
-
-        f.write("\n  Diagnosis:\n")
-        if positive_adv_pct < 1:
-             f.write("    [PROBLEM] Advantage almost never positive. V may be too high.\n")
-        elif positive_adv_pct < 10:
-             f.write("    [WARNING] Low positive advantage (<10%). Normal for high tau but check trends.\n")
-        elif positive_adv_pct > 50:
-             f.write("    [WARNING] High positive advantage (>50%). V may be underestimating.\n")
-        else:
-             f.write("    [OK] Reasonable positive advantage fraction.\n")
-        
     print(f"Processed {checkpoint_name}")
+    return {
+        'name': checkpoint_name, 'advantages': advantages, 'weights': weights,
+        'beta': beta, 'adv_clip': adv_clip, 'ess_pct': ess_pct,
+        'pos_adv_pct': positive_adv_pct, 'adv_mean': adv_mean, 'adv_std': adv_std,
+        'adv_skew': adv_skew, 'adv_kurt': adv_kurt, 'ks_stat': ks_stat
+    }
 
+def plot_evolution(results, output_path):
+    sns.set_theme(style="whitegrid")
+    fig = plt.figure(figsize=(18, 22))
+    gs = fig.add_gridspec(4, 2)
+    colors = sns.color_palette("rocket", n_colors=len(results))
+    percentiles = [50, 75, 90, 95]
+
+    # 1. Advantage Distribution
+    ax1 = fig.add_subplot(gs[0, :])
+    for i, res in enumerate(results):
+        sns.kdeplot(res['advantages'], ax=ax1, label=res['name'], color=colors[i], fill=True, alpha=0.1)
+        p_vals = np.percentile(res['advantages'], percentiles)
+        for p, val in zip(percentiles, p_vals):
+            ax1.axvline(val, color=colors[i], linestyle=':', alpha=0.5)
+            if i == len(results) - 1:
+                ax1.text(val, ax1.get_ylim()[1]*0.95, f'{p}%: {val:.2f}', color=colors[i], 
+                         rotation=90, ha='right', va='top', fontsize=9, fontweight='bold')
+    ax1.axvline(x=0, color='black', linestyle='--', alpha=0.5)
+    ax1.set_title("Advantage Distribution Evolution", fontsize=14, fontweight='bold')
+    ax1.legend(loc='upper left')
+
+    # 2. Weight Distribution (Log Scale)
+    ax2 = fig.add_subplot(gs[1, :])
+    for i, res in enumerate(results):
+        w_plot = np.clip(res['weights'], 1e-5, None)
+        sns.kdeplot(w_plot, ax=ax2, color=colors[i], label=res['name'], fill=True, alpha=0.05, log_scale=True)
+        p_vals_w = np.percentile(res['weights'], percentiles)
+        for p, val in zip(percentiles, p_vals_w):
+            ax2.axvline(val, color=colors[i], linestyle=':', alpha=0.5)
+            if i == len(results) - 1:
+                ax2.text(val, ax2.get_ylim()[1]*0.95, f'{p}%: {val:.2f}', color=colors[i], 
+                         rotation=90, ha='right', va='top', fontsize=9, fontweight='bold')
+    ax2.axvline(x=1.0, color='black', linestyle=':', alpha=0.5, label='Weight=1 (BC)')
+    clip_limit = results[-1]['adv_clip']
+    ax2.axvline(x=clip_limit, color='red', linestyle='--', alpha=0.5, label=f'Clip ({clip_limit})')
+    ax2.set_xlim(1e-4, clip_limit * 2)
+    ax2.set_title("Training Weight Distribution (Log Scale)", fontsize=14, fontweight='bold')
+    ax2.legend(loc='upper left')
+
+    # 3. Mean & Std Dev
+    ax3 = fig.add_subplot(gs[2, 0])
+    epochs = range(len(results))
+    ax3.plot(epochs, [r['adv_mean'] for r in results], label='Mean', marker='o')
+    ax3.plot(epochs, [r['adv_std'] for r in results], label='Std Dev', marker='x')
+    ax3.set_title("Mean & Std Dev Evolution"); ax3.legend()
+
+    # 4. Normality (KS-Stat)
+    ax4 = fig.add_subplot(gs[2, 1])
+    ax4.plot(epochs, [r['ks_stat'] for r in results], color='purple', marker='d')
+    ax4.set_title("Normality Score (Lower = More Normal)")
+
+    # 5. ESS %
+    ax5 = fig.add_subplot(gs[3, 0])
+    ax5.plot(epochs, [r['ess_pct'] for r in results], color='crimson', marker='o')
+    ax5.set_ylim(0, 105); ax5.set_title("Selectivity Trend (ESS %)")
+
+    # 6. Skewness & Kurtosis
+    ax6 = fig.add_subplot(gs[3, 1])
+    ax6.plot(epochs, [r['adv_skew'] for r in results], label='Skew', marker='^')
+    ax6.plot(epochs, [r['adv_kurt'] for r in results], label='Kurt', marker='v')
+    ax6.set_title("Shape Evolution"); ax6.legend()
+
+    plt.tight_layout(); plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Evolution plot saved to: {output_path}")
 
 def main():
     import argparse
-    import glob
-
-    parser = argparse.ArgumentParser(description="Diagnose advantage distribution for all checkpoints")
-    parser.add_argument("--experiment", type=str, required=True,
-                        help="Experiment folder name in checkpoints/")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--experiment", type=str, required=True)
     args = parser.parse_args()
 
     checkpoint_dir = PROJECT_ROOT / "checkpoints" / args.experiment
-    output_path = PROJECT_ROOT / "analysis" / f"advantage_diagnostic_{args.experiment}.txt"
+    output_text = PROJECT_ROOT / "analysis" / f"advantage_diagnostic_{args.experiment}.txt"
+    output_plot = PROJECT_ROOT / "analysis" / f"advantage_evolution_{args.experiment}.png"
     
-    # We load dataset once to pass to function (optimization)
-    # Default to continuing dataset if exists, else base stock
-    dataset_path_cont = PROJECT_ROOT / "data" / "inv_management_basestock.pt"
-    dataset_path_episodic = PROJECT_ROOT / "data" / "inv_management_base_stock.pt"
-    
-    if dataset_path_cont.exists():
-        dataset_path = dataset_path_cont
-    elif dataset_path_episodic.exists():
-        dataset_path = dataset_path_episodic
-    else:
-        print("No dataset found.")
-        exit(1)
-        
-    print(f"Loading dataset from {dataset_path}...")
+    dataset_path = PROJECT_ROOT / "data" / "inv_management_basestock.pt"
+    if not dataset_path.exists(): dataset_path = PROJECT_ROOT / "data" / "inv_management_base_stock.pt"
     dataset = torch.load(dataset_path, weights_only=False)
 
-    # Initialize output file
-    with open(output_path, 'w') as f:
-        f.write("=" * 70 + "\n")
-        f.write(f"ADVANTAGE DISTRIBUTION DIAGNOSTIC - ALL CHECKPOINTS\n")
-        f.write(f"Experiment: {args.experiment}\n")
-        f.write(f"Generated: {datetime.now().isoformat()}\n")
-        f.write("=" * 70 + "\n\n")
+    with open(output_text, 'w') as f:
+        f.write(f"ADVANTAGE DIAGNOSTIC: {args.experiment}\n{'='*70}\n")
 
-    # Find all Q checkpoints
-    q_dir = checkpoint_dir / "q_net"
-    v_dir = checkpoint_dir / "v_net"
-    
-    if not q_dir.exists():
-        print(f"Directory not found: {q_dir}")
-        exit(1)
-
-    # Pattern for epoch checkpoints
-    epoch_pattern = re.compile(r'checkpoint_epoch_(\d+)\.pth')
-    
+    q_dir, v_dir = checkpoint_dir / "q_net", checkpoint_dir / "v_net"
+    target_epochs = []
     checkpoints = []
-    
-    # 1. Find numbered epochs
     for f in q_dir.glob("checkpoint_epoch_*.pth"):
-        match = epoch_pattern.match(f.name)
-        if match:
-            epoch = int(match.group(1))
-            checkpoints.append({
-                'epoch': epoch,
-                'name': f"Epoch {epoch}",
-                'q_path': f,
-                'v_path': v_dir / f.name
-            })
-            
-    # Sort by epoch
-    checkpoints.sort(key=lambda x: x['epoch'])
+        match = re.match(r'checkpoint_epoch_(\d+)\.pth', f.name)
+        if match and int(match.group(1)) in target_epochs:
+            checkpoints.append({'epoch': int(match.group(1)), 'name': f"Epoch {match.group(1)}", 'q_path': f, 'v_path': v_dir / f.name})
     
-    # 2. Add best_loss.pth at the end if it exists
-    best_q_path = q_dir / "best_loss.pth"
-    best_v_path = v_dir / "best_loss.pth"
-    if best_q_path.exists():
-         checkpoints.append({
-                'epoch': 999999, # Sort last
-                'name': "Best Loss",
-                'q_path': best_q_path,
-                'v_path': best_v_path
-            })
+    checkpoints.sort(key=lambda x: x['epoch'])
+    if (q_dir / "best_loss.pth").exists():
+        checkpoints.append({'epoch': 999999, 'name': "Best Loss", 'q_path': q_dir / "best_loss.pth", 'v_path': v_dir / "best_loss.pth"})
 
-    print(f"Found {len(checkpoints)} checkpoints.")
-
-    for ckpt in checkpoints:
-        if not ckpt['v_path'].exists():
-            print(f"Skipping {ckpt['name']} - V-net missing")
-            continue
-            
-        diagnose_advantage(
-            str(ckpt['q_path']), 
-            str(ckpt['v_path']), 
-            dataset, 
-            str(output_path),
-            ckpt['name']
-        )
-        
-    print(f"\nFull diagnostic written to: {output_path}")
+    all_results = [diagnose_advantage(str(c['q_path']), str(c['v_path']), dataset, str(output_text), c['name']) for c in checkpoints if c['v_path'].exists()]
+    if all_results: plot_evolution(all_results, str(output_plot))
 
 if __name__ == "__main__":
     main()

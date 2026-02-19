@@ -155,7 +155,8 @@ def train_qv_networks(dataset_path=None, experiment_name=None):
 
     # Setup experiment directories
     if experiment_name is None:
-        experiment_name = "inv_management_iql_minmax_run"
+        dataset_name = config.get('dataset', {}).get('name', 'unknown')
+        experiment_name = f"inv_management_iql_{dataset_name}_run"
 
     base_path = project_root
     agent._create_new_experimental(

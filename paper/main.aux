@@ -1,41 +1,88 @@
 \relax 
-\citation{hubbs2020orgym}
+\citation{Scarf1960Optimality,Zipkin2000}
+\citation{ClarkScarf1960}
+\citation{Lee1997Bullwhip}
+\citation{Sutton2018}
+\citation{hubbs2020orgym,Gijsbrechts2022DeepRL,Oroojlooyjadid2022DeepQN}
+\citation{Gijsbrechts2022DeepRL}
 \citation{levine2020offline}
 \citation{kostrikov2021iql}
-\citation{hubbs2020orgym}
+\citation{Scarf1960Optimality,Zipkin2000}
+\citation{ClarkScarf1960,Scarf1960Optimality}
+\citation{Graves1989MultiEchelon,Lee1997Bullwhip}
 \@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{}\protected@file@percent }
 \newlabel{sec:introduction}{{I}{1}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Conceptual overview of the \textbf  {Implicit Synthesis} mechanism. (A) The dataset contains a mixture of diverse expert heuristics. (B) IQL uses expectile regression ($\tau =0.7$) to estimate the upper-bound value $V(s)$, creating an ``Advantage Zone'' that filters for high-performance decisions. (C) The resulting policy synthesizes a control strategy by selectively imitating only the best decisions from the expert mixture.}}{1}{}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:concept}{{1}{1}{}{}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{1}{}\protected@file@percent }
 \newlabel{sec:related_work}{{II}{1}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}The Limits of Heuristics}{1}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}The Cost Barrier of Online RL}{1}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Offline RL: The Industrial Path}{1}{}\protected@file@percent }
+\citation{Sutton2018,hubbs2020orgym}
+\citation{Gijsbrechts2022DeepRL,Oroojlooyjadid2022DeepQN,Leluc2023MARLIM}
+\citation{Gijsbrechts2022DeepRL}
+\citation{levine2020offline}
+\citation{fujimoto2019off}
+\citation{Kumar2020ConservativeQL}
+\citation{fujimoto2021minimalist}
+\citation{nair2020awac}
 \citation{kostrikov2021iql}
+\citation{NeweyPowell1987}
+\citation{Chen2021DecisionTransformer}
+\citation{Brandfonbrener2021OfflineRL}
+\citation{Park2025,MaDing2025,Kaynov2024,YavuzKaya2024}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}The Cost Barrier of Online RL}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Offline RL: The Industrial Path}{2}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {III}Methodology}{2}{}\protected@file@percent }
 \newlabel{sec:methodology}{{III}{2}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Problem Formulation}{2}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Formal Problem Definition}{2}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-B}1}Centralized Optimization View (Classical Formulation)}{2}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-B}2}Decentralized Agent View (POMDP Formulation)}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-B}2}Decentralized Agent View (POMDP Formulation)}{3}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}The Dataset: A Mixture of Experts}{3}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}IQL: The High-Pass Filter}{3}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {IV}Experiments}{3}{}\protected@file@percent }
 \newlabel{sec:experiments}{{IV}{3}{}{}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Experimental Setup}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Training Details}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Baselines}{3}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {V}Results and Discussion}{3}{}\protected@file@percent }
-\newlabel{sec:results}{{V}{3}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Performance comparison. The IQL agent significantly outperforms the best expert in the dataset.}}{3}{}\protected@file@percent }
-\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:results}{{I}{3}{}{}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Transcending the Expert Frontier}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Training Details}{4}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Validation losses for the Q, V, and Actor networks over 100 training epochs. The stable convergence of the expectile regression objective ($\tau =0.7$) confirms the robustness of the training process.}}{4}{}\protected@file@percent }
+\newlabel{fig:learning_curves}{{2}{4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Baselines}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Results and Discussion}{4}{}\protected@file@percent }
+\newlabel{sec:results}{{V}{4}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Performance comparison. The IQL agent significantly outperforms the best expert in the dataset.}}{4}{}\protected@file@percent }
+\newlabel{tab:results}{{I}{4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Transcending the Expert Frontier}{4}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Breaking the Heuristic Ceiling: Mean episode reward comparison. The IQL agent (crimson) significantly outperforms the best expert (steelblue) and the individual training experts (gray), demonstrating successful synthesis from the expert mixture.}}{4}{}\protected@file@percent }
+\newlabel{fig:expert_comparison}{{3}{4}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Inventory trajectory comparison over a 30-day horizon. The IQL agent (solid crimson) exhibits more dynamic and responsive control logic compared to the rigid, static thresholds of the optimized Base-Stock policy (dashed steelblue).}}{4}{}\protected@file@percent }
+\newlabel{fig:inventory_comparison}{{4}{4}{}{}{}}
 \bibstyle{plainnat}
-\bibdata{references.bib}
-\bibcite{hubbs2020orgym}{{1}{2020}{{Hubbs et~al.}}{{Hubbs, Perez, Sarwar, Sahinidis, Grossmann, and Wassick}}}
-\bibcite{kostrikov2021iql}{{2}{2021}{{Kostrikov et~al.}}{{Kostrikov, Nair, and Levine}}}
-\bibcite{levine2020offline}{{3}{2020}{{Levine et~al.}}{{Levine, Kumar, Tucker, and Fu}}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Implicit Synthesis}{4}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{4}{}\protected@file@percent }
-\newlabel{sec:conclusion}{{VI}{4}{}{}{}}
-\gdef \@abspage@last{4}
+\bibdata{references}
+\bibcite{Brandfonbrener2021OfflineRL}{{1}{2021}{{Brandfonbrener et~al.}}{{Brandfonbrener, Whitney, Ranganath, and Bruna}}}
+\bibcite{Chen2021DecisionTransformer}{{2}{2021}{{Chen et~al.}}{{Chen, Lu, Rajeswaran, Lee, Grover, Laskin, Abbeel, Srinivas, and Mordatch}}}
+\bibcite{ClarkScarf1960}{{3}{1960}{{Clark and Scarf}}{{}}}
+\bibcite{fujimoto2021minimalist}{{4}{2021}{{Fujimoto and Gu}}{{}}}
+\bibcite{fujimoto2019off}{{5}{2019}{{Fujimoto et~al.}}{{Fujimoto, Meger, and Precup}}}
+\bibcite{Gijsbrechts2022DeepRL}{{6}{2022}{{Gijsbrechts et~al.}}{{Gijsbrechts, Boute, Mieghem, and Zhang}}}
+\bibcite{Graves1989MultiEchelon}{{7}{1989}{{Graves}}{{}}}
+\bibcite{hubbs2020orgym}{{8}{2020}{{Hubbs et~al.}}{{Hubbs, Perez, Sarwar, Sahinidis, Grossmann, and Wassick}}}
+\bibcite{Kaynov2024}{{9}{2024}{{Kaynov et~al.}}{{}}}
+\bibcite{kostrikov2021iql}{{10}{2021}{{Kostrikov et~al.}}{{Kostrikov, Nair, and Levine}}}
+\bibcite{Kumar2020ConservativeQL}{{11}{2020}{{Kumar et~al.}}{{Kumar, Zhou, Tucker, and Levine}}}
+\bibcite{Lee1997Bullwhip}{{12}{1997}{{Lee et~al.}}{{Lee, Padmanabhan, and Whang}}}
+\bibcite{Leluc2023MARLIM}{{13}{2023}{{Leluc et~al.}}{{}}}
+\bibcite{levine2020offline}{{14}{2020}{{Levine et~al.}}{{Levine, Kumar, Tucker, and Fu}}}
+\bibcite{MaDing2025}{{15}{2025}{{Ma and Ding}}{{}}}
+\bibcite{nair2020awac}{{16}{2021}{{Nair et~al.}}{{Nair, Dalal, Gupta, and Levine}}}
+\bibcite{NeweyPowell1987}{{17}{1987}{{Newey and Powell}}{{}}}
+\bibcite{Oroojlooyjadid2022DeepQN}{{18}{2022}{{Oroojlooyjadid et~al.}}{{Oroojlooyjadid, Nazari, Snyder, and Takáč}}}
+\bibcite{Park2025}{{19}{2025}{{Park et~al.}}{{Park, Turner, and Becker}}}
+\bibcite{Scarf1960Optimality}{{20}{1960}{{Scarf}}{{}}}
+\bibcite{Sutton2018}{{21}{2018}{{Sutton and Barto}}{{}}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Implicit Synthesis}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{5}{}\protected@file@percent }
+\newlabel{sec:conclusion}{{VI}{5}{}{}{}}
+\bibcite{YavuzKaya2024}{{22}{2024}{{Yavuz and Kaya}}{{}}}
+\bibcite{Zipkin2000}{{23}{2000}{{Zipkin}}{{}}}
+\gdef \@abspage@last{6}

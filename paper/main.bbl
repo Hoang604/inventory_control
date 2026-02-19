@@ -1,23 +1,125 @@
-\begin{thebibliography}{3}
+\begin{thebibliography}{23}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
+\bibitem[Brandfonbrener et~al.(2021)Brandfonbrener, Whitney, Ranganath, and Bruna]{Brandfonbrener2021OfflineRL}
+David Brandfonbrener, Will Whitney, Rajesh Ranganath, and Joan Bruna.
+\newblock Offline rl without off-policy evaluation.
+\newblock In \emph{Advances in Neural Information Processing Systems}, volume~34, 2021.
+
+\bibitem[Chen et~al.(2021)Chen, Lu, Rajeswaran, Lee, Grover, Laskin, Abbeel, Srinivas, and Mordatch]{Chen2021DecisionTransformer}
+Lili Chen, Kevin Lu, Aravind Rajeswaran, Kimin Lee, Aditya Grover, Misha Laskin, Pieter Abbeel, Aravind Srinivas, and Igor Mordatch.
+\newblock Decision transformer: Reinforcement learning via sequence modeling.
+\newblock \emph{Advances in Neural Information Processing Systems}, 34, 2021.
+
+\bibitem[Clark and Scarf(1960)]{ClarkScarf1960}
+Andrew~J. Clark and Herbert Scarf.
+\newblock Optimal policies for a multi-echelon inventory problem.
+\newblock \emph{Management Science}, 6\penalty0 (4):\penalty0 475--490, 1960.
+\newblock \doi{10.1287/mnsc.6.4.475}.
+
+\bibitem[Fujimoto and Gu(2021)]{fujimoto2021minimalist}
+Scott Fujimoto and Shixiang Gu.
+\newblock A minimalist approach to offline reinforcement learning.
+\newblock In \emph{Advances in Neural Information Processing Systems}, volume~34, pages 20127--20139, 2021.
+
+\bibitem[Fujimoto et~al.(2019)Fujimoto, Meger, and Precup]{fujimoto2019off}
+Scott Fujimoto, David Meger, and Doina Precup.
+\newblock Off-policy deep reinforcement learning without exploration.
+\newblock In \emph{Proceedings of the 36th International Conference on Machine Learning}, pages 2052--2062, 2019.
+
+\bibitem[Gijsbrechts et~al.(2022)Gijsbrechts, Boute, Mieghem, and Zhang]{Gijsbrechts2022DeepRL}
+Joren Gijsbrechts, Robert~N. Boute, Jan A.~Van Mieghem, and Dennis~J. Zhang.
+\newblock Can deep reinforcement learning improve inventory management? performance on lost sales, dual-sourcing, and multi-echelon problems.
+\newblock \emph{Manufacturing \& Service Operations Management}, 24\penalty0 (3):\penalty0 1349--1368, 2022.
+\newblock \doi{10.1287/msom.2021.1064}.
+
+\bibitem[Graves(1989)]{Graves1989MultiEchelon}
+Stephen~C. Graves.
+\newblock A multi-echelon inventory model with fixed reorder intervals.
+\newblock Technical Report Working Paper 3045-89, Massachusetts Institute of Technology (MIT), Sloan School of Management, Cambridge, MA, 1989.
+
 \bibitem[Hubbs et~al.(2020)Hubbs, Perez, Sarwar, Sahinidis, Grossmann, and Wassick]{hubbs2020orgym}
 Christian~D Hubbs, Hector~D Perez, Owais Sarwar, Nikolaos~V Sahinidis, Ignacio~E Grossmann, and John~M Wassick.
 \newblock Or-gym: A reinforcement learning library for operations research problems.
 \newblock \emph{arXiv preprint arXiv:2008.06319}, 2020.
+
+\bibitem[Kaynov et~al.(2024)]{Kaynov2024}
+A.~Kaynov et~al.
+\newblock Deep reinforcement learning for one-warehouse multi-retailer inventory management.
+\newblock \emph{Working Paper}, 2024.
 
 \bibitem[Kostrikov et~al.(2021)Kostrikov, Nair, and Levine]{kostrikov2021iql}
 Ilya Kostrikov, Ashvin Nair, and Sergey Levine.
 \newblock Offline reinforcement learning with implicit q-learning.
 \newblock \emph{arXiv preprint arXiv:2110.06169}, 2021.
 
+\bibitem[Kumar et~al.(2020)Kumar, Zhou, Tucker, and Levine]{Kumar2020ConservativeQL}
+Aviral Kumar, Aurick Zhou, George Tucker, and Sergey Levine.
+\newblock Conservative q-learning for offline reinforcement learning.
+\newblock \emph{Advances in Neural Information Processing Systems}, 33:\penalty0 1179--1191, 2020.
+
+\bibitem[Lee et~al.(1997)Lee, Padmanabhan, and Whang]{Lee1997Bullwhip}
+Hau~L. Lee, V.~Padmanabhan, and Seungjin Whang.
+\newblock Information distortion in a supply chain: The bullwhip effect.
+\newblock \emph{Management Science}, 43\penalty0 (4):\penalty0 546--558, 1997.
+
+\bibitem[Leluc et~al.(2023)]{Leluc2023MARLIM}
+R.~Leluc et~al.
+\newblock Marlim: Multi-agent reinforcement learning for inventory management.
+\newblock \emph{arXiv preprint arXiv:2301.03319}, 2023.
+
 \bibitem[Levine et~al.(2020)Levine, Kumar, Tucker, and Fu]{levine2020offline}
 Sergey Levine, Aviral Kumar, George Tucker, and Justin Fu.
 \newblock Offline reinforcement learning: Tutorial, review, and perspectives on open problems.
 \newblock \emph{arXiv preprint arXiv:2005.01643}, 2020.
+
+\bibitem[Ma and Ding(2025)]{MaDing2025}
+L.~Ma and X.~Ding.
+\newblock Research on omni-channel inventory management based on deep reinforcement learning.
+\newblock \emph{Sustainability}, 2025.
+
+\bibitem[Nair et~al.(2021)Nair, Dalal, Gupta, and Levine]{nair2020awac}
+Ashvin Nair, Murtaza Dalal, Abhishek Gupta, and Sergey Levine.
+\newblock Awac: Accelerating online reinforcement learning with offline datasets.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+
+\bibitem[Newey and Powell(1987)]{NeweyPowell1987}
+Whitney~K. Newey and James~L. Powell.
+\newblock Asymmetric least squares estimation and testing.
+\newblock \emph{Econometrica}, 55\penalty0 (4):\penalty0 819--847, 1987.
+
+\bibitem[Oroojlooyjadid et~al.(2022)Oroojlooyjadid, Nazari, Snyder, and Takáč]{Oroojlooyjadid2022DeepQN}
+Afshin Oroojlooyjadid, MohammadReza Nazari, Lawrence~V. Snyder, and Martin Takáč.
+\newblock A deep q-network for the beer game: Deep reinforcement learning for inventory optimization.
+\newblock \emph{Manufacturing \& Service Operations Management}, 24\penalty0 (1):\penalty0 285--304, January 2022.
+
+\bibitem[Park et~al.(2025)Park, Turner, and Becker]{Park2025}
+J.~Park, S.~Turner, and M.~Becker.
+\newblock Inventory optimization in retail supply chains using deep reinforcement learning.
+\newblock \emph{Journal of Supply Chain Management}, 2025.
+
+\bibitem[Scarf(1960)]{Scarf1960Optimality}
+Herbert Scarf.
+\newblock The optimality of (s, s) policies in the dynamic inventory problem.
+\newblock In Kenneth~J. Arrow, Samuel Karlin, and Patrick Suppes, editors, \emph{Mathematical Methods in the Social Sciences, 1959: Proceedings of the First Stanford Symposium}, pages 196--202. Stanford University Press, Palo Alto, CA, 1960.
+
+\bibitem[Sutton and Barto(2018)]{Sutton2018}
+Richard~S. Sutton and Andrew~G. Barto.
+\newblock \emph{Reinforcement Learning: An Introduction}.
+\newblock The MIT Press, Cambridge, Massachusetts, second edition edition, 2018.
+
+\bibitem[Yavuz and Kaya(2024)]{YavuzKaya2024}
+M.~Yavuz and O.~Kaya.
+\newblock Deep reinforcement learning algorithms for dynamic pricing and inventory management.
+\newblock \emph{Computers \& Industrial Engineering}, 2024.
+
+\bibitem[Zipkin(2000)]{Zipkin2000}
+Paul~H. Zipkin.
+\newblock \emph{Foundations of Inventory Management}.
+\newblock McGraw-Hill, Boston, 2000.
 
 \end{thebibliography}

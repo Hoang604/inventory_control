@@ -7,16 +7,23 @@ All experiments were conducted on the \texttt{InvManagement-v1} environment. The
 \end{itemize}
 
 \subsection{Training Details}
-We generated a dataset consisting of 2,000 episodes (60,000 transitions) using the \textbf{Mixture of Experts} strategy described in Section III-C. This dataset samples from the top 10 Base-Stock configurations found via exhaustive grid search.
+We generated a dataset consisting of 2,000 episodes (60,000 transitions) using the \textbf{Mixture of Experts} strategy described in Section III-C. This dataset samples from the top 5 Base-Stock configurations found via exhaustive grid search.
 
 The IQL agent was trained for 100 epochs with a batch size of 512. The hyperparameters were set to:
 \begin{itemize}
     \item Discount factor $\gamma = 0.99$
-    \item Expectile $\tau = 0.8$
+    \item Expectile $\tau = 0.7$
     \item Temperature $\beta = 1.0$
     \item Learning Rate = $3 \times 10^{-6}$
     \item Network Size: 1024 hidden units
 \end{itemize}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{figures/learning_curves.pdf}
+    \caption{Validation losses for the Q, V, and Actor networks over 100 training epochs. The stable convergence of the expectile regression objective ($\tau=0.7$) confirms the robustness of the training process.}
+    \label{fig:learning_curves}
+\end{figure}
 
 \subsection{Baselines}
 We compare the trained IQL agent against the best performing expert from the dataset generation process:

@@ -1,0 +1,12 @@
+{
+    "method": {
+        "name": "BC Agent (Baseline)",
+        "mean_reward": 402.0518730777296,
+        "std_dev": 14.030846114276985,
+        "n_episodes": 100
+    },
+    "comparison": {
+        "vs_iql_diff": 1.26864792545598,
+        "vs_expert_diff": 60.70137081760339
+    }
+}

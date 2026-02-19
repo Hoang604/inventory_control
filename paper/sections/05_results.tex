@@ -1,4 +1,11 @@
-We evaluated the IQL agent against the best-performing Base-Stock policy (the ``Best Expert'') identified via our exhaustive grid search. This constitutes a rigorous baseline, representing the theoretical ceiling of traditional linear heuristics in this domain. The results, summarized in Table \ref{tab:results}, reveal that the offline agent successfully \textbf{transcends} this ceiling.
+We evaluated the IQL agent against the best-performing Base-Stock policy (the ``Best Expert'') identified via our exhaustive grid search. This constitutes a rigorous baseline, representing the theoretical ceiling of traditional linear heuristics in this domain. The results, summarized in Table \ref{tab:results} and visualized in Figure \ref{fig:expert_comparison}, reveal that the offline agent successfully \textbf{transcends} this ceiling.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{figures/expert_comparison.pdf}
+    \caption{Breaking the Heuristic Ceiling: Mean episode reward comparison. The IQL agent (crimson) significantly outperforms the best expert (steelblue) and the individual training experts (gray), demonstrating successful synthesis from the expert mixture.}
+    \label{fig:expert_comparison}
+\end{figure}
 
 \begin{table}[ht]
     \centering
@@ -6,8 +13,8 @@ We evaluated the IQL agent against the best-performing Base-Stock policy (the ``
         \toprule
         \textbf{Policy}              & \textbf{Mean Reward (Profit)} & \textbf{Std. Dev. (Risk)} \\
         \midrule
-        Base Stock Expert (Baseline) & 334.48                        & 13.51                     \\
-        \textbf{IQL Agent (Ours)}    & \textbf{401.90}               & \textbf{12.93}            \\
+        Base Stock Expert (Baseline) & 341.35                        & 13.27                     \\
+        \textbf{IQL Agent (Ours)}    & \textbf{400.78}               & \textbf{14.76}            \\
         \bottomrule
     \end{tabular}
     \caption{Performance comparison. The IQL agent significantly outperforms the best expert in the dataset.}
@@ -15,11 +22,18 @@ We evaluated the IQL agent against the best-performing Base-Stock policy (the ``
 \end{table}
 
 \subsection{Transcending the Expert Frontier}
-We \textbf{demonstrate} that the IQL agent achieves a \textbf{20.1\% increase in Mean Profit} (from 334.48 to 401.90) compared to the optimal Base-Stock baseline. This improvement is statistically significant with a p-value of $1.8 \times 10^{-88}$.
+We \textbf{demonstrate} that the IQL agent achieves a \textbf{17.41\% increase in Mean Profit} (from 341.35 to 400.78) compared to the optimal Base-Stock baseline. This improvement is statistically significant with a p-value of $1.18 \times 10^{-74}$.
 
-This result \textbf{challenges the fundamental assumption} that offline agents are bounded by the quality of their training data. The baseline is not a random policy; it is the global optimum within the class of Base-Stock policies ($z^* = [80, 180, 40]$). The fact that the IQL agent outperforms it establishes that the optimal control surface for multi-echelon inventory management is fundamentally non-linear, and thus inaccessible to standard heuristics.
+This result \textbf{challenges the fundamental assumption} that offline agents are bounded by the quality of their training data. The baseline is not a random policy; it is the global optimum within the class of Base-Stock policies ($z^* = [70, 170, 15]$). The fact that the IQL agent outperforms it establishes that the optimal control surface for multi-echelon inventory management is fundamentally non-linear, and thus inaccessible to standard heuristics.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\linewidth]{figures/inventory_comparison.pdf}
+    \caption{Inventory trajectory comparison over a 30-day horizon. The IQL agent (solid crimson) exhibits more dynamic and responsive control logic compared to the rigid, static thresholds of the optimized Base-Stock policy (dashed steelblue).}
+    \label{fig:inventory_comparison}
+\end{figure}
 
 By training on a mixture of diverse experts, the IQL agent \textbf{orchestrates} a non-linear interpolation of their strategies. It learns to \textbf{leverage} the aggressive ordering of a ``high-stock'' expert during demand surges while switching to the conservation of a ``lean'' expert during quiet periods. This dynamic switching \textbf{disentangles} the rigid trade-offs that constrain static base-stock policies, allowing the agent to navigate the state space with superior agility.
 
 \subsection{Implicit Synthesis}
-These findings validate the capability of Offline RL to perform \textbf{Super-Human Synthesis}. The agent was never provided with a ``super-expert'' demonstration. Instead, it \textbf{synthesized} one by aggregating the partial wisdom of multiple suboptimal experts. The expectile regression ($\tau=0.8$) served as the mathematical filter for this synthesis, allowing the agent to systematically \textbf{extract} and \textbf{stabilize} the highest-value decisions across the diverse expert population.
+These findings validate the capability of Offline RL to perform \textbf{Super-Human Synthesis}. The agent was never provided with a ``super-expert'' demonstration. Instead, it \textbf{synthesized} one by aggregating the partial wisdom of multiple suboptimal experts. The expectile regression ($\tau=0.7$) served as the mathematical filter for this synthesis, allowing the agent to systematically \textbf{extract} and \textbf{stabilize} the highest-value decisions across the diverse expert population.
